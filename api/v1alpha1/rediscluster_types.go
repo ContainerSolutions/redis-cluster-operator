@@ -30,12 +30,12 @@ type RedisClusterSpec struct {
 
 	// Masters specifies how many master nodes should be created in the Redis cluster.
 	// +kubebuilder:validation:Required
-	Masters int `json:"masters"`
+	Masters int32 `json:"masters"`
 
 	// ReplicasPerMaster specifies how many replicas should be attached to each master node in the Redis cluster.
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default:=0
-	ReplicasPerMaster int `json:"replicasPerMaster,omitempty"`
+	ReplicasPerMaster int32 `json:"replicasPerMaster,omitempty"`
 }
 
 // RedisClusterStatus defines the observed state of RedisCluster
@@ -54,6 +54,10 @@ type RedisCluster struct {
 
 	Spec   RedisClusterSpec   `json:"spec,omitempty"`
 	Status RedisClusterStatus `json:"status,omitempty"`
+}
+
+func (cluster *RedisCluster) NodesNeeded() int32 {
+	return cluster.Spec.Masters + (cluster.Spec.Masters * cluster.Spec.ReplicasPerMaster)
 }
 
 //+kubebuilder:object:root=true
