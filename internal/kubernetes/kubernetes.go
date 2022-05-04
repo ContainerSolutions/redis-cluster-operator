@@ -13,7 +13,7 @@ import (
 
 const (
 	RedisNodeNameStatefulsetLabel = "cache.container-solutions.com/cluster-name"
-	RedisNodeComponentLabel = "cache.container-solutions.com/cluster-component"
+	RedisNodeComponentLabel       = "cache.container-solutions.com/cluster-component"
 )
 
 func GetStatefulSetLabels(cluster v1alpha1.RedisCluster) labels.Set {
@@ -25,62 +25,59 @@ func GetStatefulSetLabels(cluster v1alpha1.RedisCluster) labels.Set {
 func GetPodLabels(cluster v1alpha1.RedisCluster) labels.Set {
 	return labels.Set{
 		RedisNodeNameStatefulsetLabel: cluster.Name,
-		RedisNodeComponentLabel: "redis",
+		RedisNodeComponentLabel:       "redis",
 	}
 }
 
-func FetchExistingStatefulSet(ctx context.Context, client client.Client, cluster v1alpha1.RedisCluster) (*v1.StatefulSet, error) {
+func FetchExistingStatefulset(ctx context.Context, kubeClient client.Client, cluster v1alpha1.RedisCluster) (*v1.StatefulSet, error) {
 	statefulset := &v1.StatefulSet{}
-	err := client.Get(ctx, types.NamespacedName{
+	err := kubeClient.Get(ctx, types.NamespacedName{
 		Namespace: cluster.Namespace,
 		Name:      cluster.Name,
 	}, statefulset)
 	return statefulset, err
 }
 
-func CreateStatefulSet(ctx context.Context, client client.Client, cluster v1alpha1.RedisCluster) (*v1.StatefulSet, error) {
+func CreateStatefulset(ctx context.Context, kubeClient client.Client, cluster v1alpha1.RedisCluster) (*v1.StatefulSet, error) {
 	replicasNeeded := cluster.NodesNeeded()
 	statefulset := &v1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:                       cluster.Name,
-			Namespace:               cluster.Namespace,
-			Labels: GetStatefulSetLabels(cluster),
+			Name:      cluster.Name,
+			Namespace: cluster.Namespace,
+			Labels:    GetStatefulSetLabels(cluster),
 		},
-		Spec:       v1.StatefulSetSpec{
-			Replicas:                             &replicasNeeded,
-			Selector:                             &metav1.LabelSelector{
-				MatchLabels:      GetPodLabels(cluster),
+		Spec: v1.StatefulSetSpec{
+			Replicas: &replicasNeeded,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: GetPodLabels(cluster),
 			},
-			Template:                             v12.PodTemplateSpec{
+			Template: v12.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels:                     GetPodLabels(cluster),
+					Labels: GetPodLabels(cluster),
 				},
 				Spec: v12.PodSpec{
 					Containers: []v12.Container{
 						{
-							Name:            "redis",
-							Image:           "",  // TODO
-							ImagePullPolicy: "",  // TODO
-							Command:         nil, // TODO
-							Args:            nil, // TODO
-							WorkingDir:      "",  // TODO
-							Ports:           nil, // TODO
-							EnvFrom:         nil, // TODO
-							Env:             nil, // TODO
-							LivenessProbe:   nil, // TODO
-							ReadinessProbe:  nil, // TODO
-							StartupProbe:    nil, // TODO
+							Name:  "redis",
+							Image: "redis:7.0.0",
+							Ports: []v12.ContainerPort{
+								{
+									Name:          "redis",
+									ContainerPort: 6379,
+								},
+								{
+									Name:          "redis-gossip",
+									ContainerPort: 16379,
+								},
+							},
 						},
 					},
 				},
 			},
-			ServiceName:                          cluster.Name,
-			MinReadySeconds:                      10,
+			ServiceName:     cluster.Name,
+			MinReadySeconds: 10,
 		},
 	}
-	err := client.Get(ctx, types.NamespacedName{
-		Namespace: cluster.Namespace,
-		Name:      cluster.Name,
-	}, statefulset)
+	err := kubeClient.Create(ctx, statefulset)
 	return statefulset, err
 }
