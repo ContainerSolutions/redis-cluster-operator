@@ -3,4 +3,5 @@ kind: RedisCluster
 metadata:
   name: rediscluster-sample
 spec:
-  # TODO(user): Add fields here
+  masters: 3
+  replicasPerMaster: 0
