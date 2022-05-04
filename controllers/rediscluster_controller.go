@@ -18,7 +18,11 @@ package controllers
 
 import (
 	"context"
+	"github.com/containersolutions/redis-cluster-operator/internal/kubernetes"
+	v1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
+	"time"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -59,6 +63,18 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			logger.Info("RedisCluster not found during reconcile. Probably deleted by user. Exiting early.")
 			return ctrl.Result{}, nil
 		}
+	}
+
+	// At this point we have a valid RedisCluster.
+	// A Redis cluster needs a StatefulSet to run in.
+	// We'll check for an existing Statefulset. If it doesn't exist we'll create one.
+	statefulset, err := kubernetes.FetchExistingStatefulSet(ctx, r.Client, redisCluster)
+	if err != nil && !errors.IsNotFound(err) {
+		// We've got a legitimate error, we should log the error and exit early
+		logger.Error(err, "Could not check whether statefulset exists due to error.")
+		return ctrl.Result{
+			RequeueAfter: 30 * time.Second,
+		}, err
 	}
 
 	// TODO(user): your logic here

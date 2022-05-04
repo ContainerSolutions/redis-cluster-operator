@@ -50,3 +50,30 @@ func TestRedisClusterReconciler_Reconcile_ReturnsIfRedisClusterIsNotFound(t *tes
 		t.Fatalf("reconcile: (%v)", err)
 	}
 }
+
+func TestRedisClusterReconciler_Reconcile_ReturnsErrorIfCannotGetStatefulset(t *testing.T) {
+	// Register operator types with the runtime scheme.
+	s := scheme.Scheme
+	s.AddKnownTypes(cachev1alpha1.GroupVersion)
+	clientBuilder := fake.NewClientBuilder()
+	client := clientBuilder.Build()
+
+	// Create a ReconcileMemcached object with the scheme and fake client.
+	r := &RedisClusterReconciler{
+		Client: client,
+		Scheme: s,
+	}
+
+	// Mock request to simulate Reconcile() being called on an event for a
+	// watched resource .
+	req := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      "redis-cluster",
+			Namespace: "default",
+		},
+	}
+	_, err := r.Reconcile(context.TODO(), req)
+	if err != nil {
+		t.Fatalf("reconcile: (%v)", err)
+	}
+}
