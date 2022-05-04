@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"k8s.io/apimachinery/pkg/api/errors"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -47,7 +48,18 @@ type RedisClusterReconciler struct {
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.11.0/pkg/reconcile
 func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
+	logger := log.FromContext(ctx)
+
+	redisCluster := &cachev1alpha1.RedisCluster{}
+	err := r.Client.Get(ctx, req.NamespacedName, redisCluster)
+
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// The RedisCluster was probably deleted. Therefore we can skip reconciling, and trust Kubernetes to delete the resources
+			logger.Info("RedisCluster not found during reconcile. Probably deleted by user. Exiting early.")
+			return ctrl.Result{}, nil
+		}
+	}
 
 	// TODO(user): your logic here
 
