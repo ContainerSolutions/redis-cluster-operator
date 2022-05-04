@@ -18,10 +18,9 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"github.com/containersolutions/redis-cluster-operator/internal/kubernetes"
-	v1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/types"
 	"time"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -68,7 +67,7 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	// At this point we have a valid RedisCluster.
 	// A Redis cluster needs a StatefulSet to run in.
 	// We'll check for an existing Statefulset. If it doesn't exist we'll create one.
-	statefulset, err := kubernetes.FetchExistingStatefulSet(ctx, r.Client, redisCluster)
+	statefulset, err := kubernetes.FetchExistingStatefulset(ctx, r.Client, redisCluster)
 	if err != nil && !errors.IsNotFound(err) {
 		// We've got a legitimate error, we should log the error and exit early
 		logger.Error(err, "Could not check whether statefulset exists due to error.")
@@ -76,6 +75,16 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			RequeueAfter: 30 * time.Second,
 		}, err
 	}
+
+	if errors.IsNotFound(err) {
+		// We need to create the Statefulset
+		statefulset, err = kubernetes.CreateStatefulset(ctx, r.Client, redisCluster)
+		if err != nil {
+			logger.Error(err, "Failed to create Statefulset for RedisCluster")
+		}
+	}
+
+	fmt.Println(statefulset)
 
 	// TODO(user): your logic here
 

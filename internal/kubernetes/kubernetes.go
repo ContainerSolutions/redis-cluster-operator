@@ -16,20 +16,20 @@ const (
 	RedisNodeComponentLabel       = "cache.container-solutions.com/cluster-component"
 )
 
-func GetStatefulSetLabels(cluster v1alpha1.RedisCluster) labels.Set {
+func GetStatefulSetLabels(cluster *v1alpha1.RedisCluster) labels.Set {
 	return labels.Set{
 		RedisNodeNameStatefulsetLabel: cluster.Name,
 	}
 }
 
-func GetPodLabels(cluster v1alpha1.RedisCluster) labels.Set {
+func GetPodLabels(cluster *v1alpha1.RedisCluster) labels.Set {
 	return labels.Set{
 		RedisNodeNameStatefulsetLabel: cluster.Name,
 		RedisNodeComponentLabel:       "redis",
 	}
 }
 
-func FetchExistingStatefulset(ctx context.Context, kubeClient client.Client, cluster v1alpha1.RedisCluster) (*v1.StatefulSet, error) {
+func FetchExistingStatefulset(ctx context.Context, kubeClient client.Client, cluster *v1alpha1.RedisCluster) (*v1.StatefulSet, error) {
 	statefulset := &v1.StatefulSet{}
 	err := kubeClient.Get(ctx, types.NamespacedName{
 		Namespace: cluster.Namespace,
@@ -38,7 +38,7 @@ func FetchExistingStatefulset(ctx context.Context, kubeClient client.Client, clu
 	return statefulset, err
 }
 
-func CreateStatefulset(ctx context.Context, kubeClient client.Client, cluster v1alpha1.RedisCluster) (*v1.StatefulSet, error) {
+func CreateStatefulset(ctx context.Context, kubeClient client.Client, cluster *v1alpha1.RedisCluster) (*v1.StatefulSet, error) {
 	replicasNeeded := cluster.NodesNeeded()
 	statefulset := &v1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
