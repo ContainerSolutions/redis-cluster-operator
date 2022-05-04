@@ -1,0 +1,6 @@
+apiVersion: cache.container-solutions.com/v1alpha1
+kind: RedisCluster
+metadata:
+  name: rediscluster-sample
+spec:
+  # TODO(user): Add fields here
