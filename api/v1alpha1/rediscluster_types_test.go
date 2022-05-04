@@ -5,13 +5,13 @@ import (
 )
 
 func TestRedisCluster_NodesNeeded(t *testing.T) {
-	testMap := map[string]struct{
-		cluster RedisCluster
+	testMap := map[string]struct {
+		cluster       RedisCluster
 		expectedNodes int32
 	}{
 		"3M0R": {
-			cluster:       RedisCluster{
-				Spec:       RedisClusterSpec{
+			cluster: RedisCluster{
+				Spec: RedisClusterSpec{
 					Masters:           3,
 					ReplicasPerMaster: 0,
 				},
@@ -19,8 +19,8 @@ func TestRedisCluster_NodesNeeded(t *testing.T) {
 			expectedNodes: 3,
 		},
 		"3M1R": {
-			cluster:       RedisCluster{
-				Spec:       RedisClusterSpec{
+			cluster: RedisCluster{
+				Spec: RedisClusterSpec{
 					Masters:           3,
 					ReplicasPerMaster: 1,
 				},
@@ -28,8 +28,8 @@ func TestRedisCluster_NodesNeeded(t *testing.T) {
 			expectedNodes: 6,
 		},
 		"3M2R": {
-			cluster:       RedisCluster{
-				Spec:       RedisClusterSpec{
+			cluster: RedisCluster{
+				Spec: RedisClusterSpec{
 					Masters:           3,
 					ReplicasPerMaster: 2,
 				},
@@ -37,8 +37,8 @@ func TestRedisCluster_NodesNeeded(t *testing.T) {
 			expectedNodes: 9,
 		},
 		"5M0R": {
-			cluster:       RedisCluster{
-				Spec:       RedisClusterSpec{
+			cluster: RedisCluster{
+				Spec: RedisClusterSpec{
 					Masters:           5,
 					ReplicasPerMaster: 0,
 				},
@@ -46,8 +46,8 @@ func TestRedisCluster_NodesNeeded(t *testing.T) {
 			expectedNodes: 5,
 		},
 		"5M1R": {
-			cluster:       RedisCluster{
-				Spec:       RedisClusterSpec{
+			cluster: RedisCluster{
+				Spec: RedisClusterSpec{
 					Masters:           5,
 					ReplicasPerMaster: 1,
 				},
@@ -55,8 +55,8 @@ func TestRedisCluster_NodesNeeded(t *testing.T) {
 			expectedNodes: 10,
 		},
 		"5M2R": {
-			cluster:       RedisCluster{
-				Spec:       RedisClusterSpec{
+			cluster: RedisCluster{
+				Spec: RedisClusterSpec{
 					Masters:           5,
 					ReplicasPerMaster: 2,
 				},

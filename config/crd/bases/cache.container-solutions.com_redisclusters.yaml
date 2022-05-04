@@ -38,11 +38,13 @@ spec:
               masters:
                 description: Masters specifies how many master nodes should be created
                   in the Redis cluster.
+                format: int32
                 type: integer
               replicasPerMaster:
                 default: 0
                 description: ReplicasPerMaster specifies how many replicas should
                   be attached to each master node in the Redis cluster.
+                format: int32
                 type: integer
             required:
             - masters

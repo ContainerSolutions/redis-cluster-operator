@@ -19,7 +19,7 @@ func TestFetchExistingStatefulSetReturnsErrorIfNotFound(t *testing.T) {
 	clientBuilder := fake.NewClientBuilder()
 	client := clientBuilder.Build()
 
-	cluster := cachev1alpha1.RedisCluster{
+	cluster := &cachev1alpha1.RedisCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "redis-cluster",
 			Namespace: "default",
@@ -50,7 +50,7 @@ func TestFetchExistingStatefulSetReturnsStatefulsetIfFound(t *testing.T) {
 
 	client := clientBuilder.Build()
 
-	cluster := cachev1alpha1.RedisCluster{
+	cluster := &cachev1alpha1.RedisCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "redis-cluster",
 			Namespace: "default",
@@ -91,7 +91,7 @@ func TestFetchExistingStatefulSetReturnsCorrectStatefulsetIfMany(t *testing.T) {
 
 	client := clientBuilder.Build()
 
-	cluster := cachev1alpha1.RedisCluster{
+	cluster := &cachev1alpha1.RedisCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "redis-cluster",
 			Namespace: "default",
@@ -114,7 +114,7 @@ func TestCreateStatefulset_CanCreateStatefulset(t *testing.T) {
 	clientBuilder := fake.NewClientBuilder()
 	client := clientBuilder.Build()
 
-	cluster := cachev1alpha1.RedisCluster{
+	cluster := &cachev1alpha1.RedisCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "redis-cluster",
 			Namespace: "default",
@@ -154,7 +154,7 @@ func TestCreateStatefulset_ThrowsErrorIfStatefulsetAlreadyExists(t *testing.T) {
 	})
 
 	client := clientBuilder.Build()
-	cluster := cachev1alpha1.RedisCluster{
+	cluster := &cachev1alpha1.RedisCluster{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "redis-cluster",
 			Namespace: "default",
