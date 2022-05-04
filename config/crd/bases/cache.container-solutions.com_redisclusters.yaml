@@ -35,10 +35,17 @@ spec:
           spec:
             description: RedisClusterSpec defines the desired state of RedisCluster
             properties:
-              foo:
-                description: Foo is an example field of RedisCluster. Edit rediscluster_types.go
-                  to remove/update
-                type: string
+              masters:
+                description: Masters specifies how many master nodes should be created
+                  in the Redis cluster.
+                type: integer
+              replicasPerMaster:
+                default: 0
+                description: ReplicasPerMaster specifies how many replicas should
+                  be attached to each master node in the Redis cluster.
+                type: integer
+            required:
+            - masters
             type: object
           status:
             description: RedisClusterStatus defines the observed state of RedisCluster

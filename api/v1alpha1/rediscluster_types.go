@@ -28,8 +28,14 @@ type RedisClusterSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Foo is an example field of RedisCluster. Edit rediscluster_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	// Masters specifies how many master nodes should be created in the Redis cluster.
+	// +kubebuilder:validation:Required
+	Masters int `json:"masters"`
+
+	// ReplicasPerMaster specifies how many replicas should be attached to each master node in the Redis cluster.
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:default:=0
+	ReplicasPerMaster int `json:"replicasPerMaster,omitempty"`
 }
 
 // RedisClusterStatus defines the observed state of RedisCluster
