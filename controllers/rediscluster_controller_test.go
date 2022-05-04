@@ -23,6 +23,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
+	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"testing"
@@ -31,7 +32,7 @@ import (
 func TestRedisClusterReconciler_Reconcile_ReturnsIfRedisClusterIsNotFound(t *testing.T) {
 	// Register operator types with the runtime scheme.
 	s := scheme.Scheme
-	s.AddKnownTypes(cachev1alpha1.GroupVersion)
+	_ = cachev1alpha1.AddToScheme(s)
 	clientBuilder := fake.ClientBuilder{}
 	// Create a ReconcileMemcached object with the scheme and fake client.
 	r := &RedisClusterReconciler{
@@ -56,7 +57,7 @@ func TestRedisClusterReconciler_Reconcile_ReturnsIfRedisClusterIsNotFound(t *tes
 func TestRedisClusterReconciler_Reconcile_ReturnsErrorIfCannotGetStatefulset(t *testing.T) {
 	// Register operator types with the runtime scheme.
 	s := scheme.Scheme
-	s.AddKnownTypes(cachev1alpha1.GroupVersion)
+	_ = cachev1alpha1.AddToScheme(s)
 	clientBuilder := fake.NewClientBuilder()
 	client := clientBuilder.Build()
 
@@ -170,3 +171,64 @@ func TestRedisClusterReconciler_Reconcile_DoesNotFailIfStatefulsetExists(t *test
 		t.Fatalf("Failed to fetch created Statefulset %v", err)
 	}
 }
+
+func TestRedisClusterReconciler_Reconcile_StatefulsetHasOwnerReferenceSetToRedisCluster(t *testing.T) {
+	// Register operator types with the runtime scheme.
+	s := scheme.Scheme
+	_ = cachev1alpha1.AddToScheme(s)
+
+	redisCluster := &cachev1alpha1.RedisCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "redis-cluster",
+			Namespace: "default",
+			UID:       "5b85970f-d70e-4f32-a9f7-12b2cc81f125",
+		},
+	}
+
+	clientBuilder := fake.NewClientBuilder()
+	clientBuilder.WithObjects(redisCluster)
+	client := clientBuilder.Build()
+
+	// Create a ReconcileMemcached object with the scheme and fake client.
+	r := &RedisClusterReconciler{
+		Client: client,
+		Scheme: s,
+	}
+
+	// Mock request to simulate Reconcile() being called on an event for a
+	// watched resource .
+	req := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      "redis-cluster",
+			Namespace: "default",
+		},
+	}
+
+	// We might need multiple reconciles to get to the result we need, as we return early most of the time.
+	// Let's reconcile a couple times before assertions.
+	for i := 0; i < 3; i++ {
+		_, err := r.Reconcile(context.TODO(), req)
+		if err != nil {
+			t.Fatalf("reconcile: (%v)", err)
+		}
+	}
+
+	sts := &v1.StatefulSet{}
+	err := client.Get(context.TODO(), types.NamespacedName{
+		Name:      "redis-cluster",
+		Namespace: "default",
+	}, sts)
+	if err != nil {
+		t.Fatalf("Failed to fetch created Statefulset %v", err)
+	}
+
+	if len(sts.GetOwnerReferences()) == 0 {
+		t.Fatalf("Owner reference is not set on statefulset")
+	}
+	gvk, _ := apiutil.GVKForObject(redisCluster, s)
+	if sts.GetOwnerReferences()[0].Name != redisCluster.Name || sts.GetOwnerReferences()[0].Kind != gvk.Kind {
+		t.Fatalf("Owner not correctly set")
+	}
+}
+
+// Statefulset is updated with owner reference if it exists but is not owner by the controller

@@ -18,9 +18,10 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 	"github.com/containersolutions/redis-cluster-operator/internal/kubernetes"
 	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/util/wait"
+	"k8s.io/client-go/util/retry"
 	"time"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -53,6 +54,8 @@ type RedisClusterReconciler struct {
 func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := log.FromContext(ctx)
 
+	logger.Info("Reconciling RedisCluster", "cluster", req.Name, "namespace", req.Namespace)
+
 	redisCluster := &cachev1alpha1.RedisCluster{}
 	err := r.Client.Get(ctx, req.NamespacedName, redisCluster)
 
@@ -81,10 +84,48 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		statefulset, err = kubernetes.CreateStatefulset(ctx, r.Client, redisCluster)
 		if err != nil {
 			logger.Error(err, "Failed to create Statefulset for RedisCluster")
+			return ctrl.Result{
+				RequeueAfter: 30 * time.Second,
+			}, err
 		}
+
+		// We've created the Statefulset, and we can wait a bit before trying to do the rest.
+		// We can trigger a new reconcile for this object in about 5 seconds
+		return ctrl.Result{
+			RequeueAfter: 5 * time.Second,
+		}, err
 	}
 
-	fmt.Println(statefulset)
+	err = retry.RetryOnConflict(wait.Backoff{
+		Steps:    5,
+		Duration: 2 * time.Second,
+		Factor:   1.0,
+		Jitter:   0.1,
+	}, func() error {
+		statefulset, err = kubernetes.FetchExistingStatefulset(ctx, r.Client, redisCluster)
+		if err != nil {
+			// At this point we definitely expect the statefulset to exist.
+			logger.Error(err, "Cannot find statefulset")
+			return err
+		}
+		err = ctrl.SetControllerReference(redisCluster, statefulset, r.Scheme)
+		if err != nil {
+			logger.Error(err, "Could not set owner reference for statefulset")
+			return err
+		}
+		err = r.Client.Update(ctx, statefulset)
+		if err != nil {
+			logger.Error(err, "Could not update statefulset with owner reference")
+		}
+		return err
+	})
+	if err != nil {
+		return ctrl.Result{
+			RequeueAfter: 10 * time.Second,
+		}, err
+	}
+
+	//fmt.Println(statefulset)
 
 	// TODO(user): your logic here
 
