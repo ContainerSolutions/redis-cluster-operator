@@ -20,6 +20,8 @@ import (
 	"context"
 	cachev1alpha1 "github.com/containersolutions/redis-cluster-operator/api/v1alpha1"
 	v1 "k8s.io/api/apps/v1"
+	v12 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
@@ -109,13 +111,16 @@ func TestRedisClusterReconciler_Reconcile_CreatesStatefulsetIfDoesntExist(t *tes
 			Namespace: "default",
 		},
 	}
-	_, err := r.Reconcile(context.TODO(), req)
-	if err != nil {
-		t.Fatalf("reconcile: (%v)", err)
+
+	for i := 0; i < 8; i++ {
+		_, err := r.Reconcile(context.TODO(), req)
+		if err != nil {
+			t.Fatalf("reconcile: (%v)", err)
+		}
 	}
 
 	sts := &v1.StatefulSet{}
-	err = client.Get(context.TODO(), types.NamespacedName{
+	err := client.Get(context.TODO(), types.NamespacedName{
 		Name:      "redis-cluster",
 		Namespace: "default",
 	}, sts)
@@ -157,13 +162,16 @@ func TestRedisClusterReconciler_Reconcile_DoesNotFailIfStatefulsetExists(t *test
 			Namespace: "default",
 		},
 	}
-	_, err := r.Reconcile(context.TODO(), req)
-	if err != nil {
-		t.Fatalf("reconcile: (%v)", err)
+
+	for i := 0; i < 8; i++ {
+		_, err := r.Reconcile(context.TODO(), req)
+		if err != nil {
+			t.Fatalf("reconcile: (%v)", err)
+		}
 	}
 
 	sts := &v1.StatefulSet{}
-	err = client.Get(context.TODO(), types.NamespacedName{
+	err := client.Get(context.TODO(), types.NamespacedName{
 		Name:      "redis-cluster",
 		Namespace: "default",
 	}, sts)
@@ -206,7 +214,7 @@ func TestRedisClusterReconciler_Reconcile_StatefulsetHasOwnerReferenceSetToRedis
 
 	// We might need multiple reconciles to get to the result we need, as we return early most of the time.
 	// Let's reconcile a couple times before assertions.
-	for i := 0; i < 3; i++ {
+	for i := 0; i < 8; i++ {
 		_, err := r.Reconcile(context.TODO(), req)
 		if err != nil {
 			t.Fatalf("reconcile: (%v)", err)
@@ -231,4 +239,181 @@ func TestRedisClusterReconciler_Reconcile_StatefulsetHasOwnerReferenceSetToRedis
 	}
 }
 
-// Statefulset is updated with owner reference if it exists but is not owner by the controller
+func TestRedisClusterReconciler_Reconcile_CreatesConfigMapForRedisCluster(t *testing.T) {
+	// Register operator types with the runtime scheme.
+	s := scheme.Scheme
+	_ = cachev1alpha1.AddToScheme(s)
+	redisCluster := &cachev1alpha1.RedisCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "redis-cluster",
+			Namespace: "default",
+		},
+	}
+
+	clientBuilder := fake.NewClientBuilder()
+	clientBuilder.WithObjects(redisCluster)
+	client := clientBuilder.Build()
+
+	// Create a ReconcileMemcached object with the scheme and fake client.
+	r := &RedisClusterReconciler{
+		Client: client,
+		Scheme: s,
+	}
+
+	// Mock request to simulate Reconcile() being called on an event for a
+	// watched resource .
+	req := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      "redis-cluster",
+			Namespace: "default",
+		},
+	}
+
+	// We might need multiple reconciles to get to the result we need, as we return early most of the time.
+	// Let's reconcile a couple times before assertions.
+	for i := 0; i < 3; i++ {
+		_, err := r.Reconcile(context.TODO(), req)
+		if err != nil {
+			t.Fatalf("reconcile: (%v)", err)
+		}
+	}
+
+	configMap := &v12.ConfigMap{}
+	err := client.Get(context.TODO(), types.NamespacedName{
+		Name:      "redis-cluster-config",
+		Namespace: "default",
+	}, configMap)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			t.Fatalf("ConfigMap was not created during reconcile %v", err)
+		}
+		t.Fatalf("Failed to fetch created ConfigMap %v", err)
+	}
+
+	if configMap.Name != redisCluster.Name+"-config" || configMap.Namespace != redisCluster.Namespace {
+		t.Fatalf("Failed to fetch correct ConfigMap in test %v", configMap)
+	}
+}
+
+func TestRedisClusterReconciler_Reconcile_DoesNotFailIfConfigMapExists(t *testing.T) {
+	// Register operator types with the runtime scheme.
+	s := scheme.Scheme
+	_ = cachev1alpha1.AddToScheme(s)
+	redisCluster := &cachev1alpha1.RedisCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "redis-cluster",
+			Namespace: "default",
+		},
+	}
+
+	clientBuilder := fake.NewClientBuilder()
+	clientBuilder.WithObjects(redisCluster, &v12.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "redis-cluster-config",
+			Namespace: "default",
+		},
+		Data: map[string]string{
+			"redis.conf": "",
+		},
+	})
+	client := clientBuilder.Build()
+
+	// Create a ReconcileMemcached object with the scheme and fake client.
+	r := &RedisClusterReconciler{
+		Client: client,
+		Scheme: s,
+	}
+
+	// Mock request to simulate Reconcile() being called on an event for a
+	// watched resource .
+	req := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      "redis-cluster",
+			Namespace: "default",
+		},
+	}
+
+	// We might need multiple reconciles to get to the result we need, as we return early most of the time.
+	// Let's reconcile a couple times before assertions.
+	for i := 0; i < 3; i++ {
+		_, err := r.Reconcile(context.TODO(), req)
+		if err != nil {
+			t.Fatalf("reconcile: (%v)", err)
+		}
+	}
+
+	configMap := &v12.ConfigMap{}
+	err := client.Get(context.TODO(), types.NamespacedName{
+		Name:      "redis-cluster-config",
+		Namespace: "default",
+	}, configMap)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			t.Fatalf("ConfigMap was not created during reconcile %v", err)
+		}
+		t.Fatalf("Failed to fetch created ConfigMap %v", err)
+	}
+
+	if configMap.Name != redisCluster.Name+"-config" || configMap.Namespace != redisCluster.Namespace {
+		t.Fatalf("Failed to fetch correct ConfigMap in test %v", configMap)
+	}
+}
+
+func TestRedisClusterReconciler_Reconcile_ConfigMapHasOwnerReferenceSetToRedisCluster(t *testing.T) {
+	// Register operator types with the runtime scheme.
+	s := scheme.Scheme
+	_ = cachev1alpha1.AddToScheme(s)
+
+	redisCluster := &cachev1alpha1.RedisCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "redis-cluster",
+			Namespace: "default",
+			UID:       "5b85970f-d70e-4f32-a9f7-12b2cc81f125",
+		},
+	}
+
+	clientBuilder := fake.NewClientBuilder()
+	clientBuilder.WithObjects(redisCluster)
+	client := clientBuilder.Build()
+
+	// Create a ReconcileMemcached object with the scheme and fake client.
+	r := &RedisClusterReconciler{
+		Client: client,
+		Scheme: s,
+	}
+
+	// Mock request to simulate Reconcile() being called on an event for a
+	// watched resource .
+	req := reconcile.Request{
+		NamespacedName: types.NamespacedName{
+			Name:      "redis-cluster",
+			Namespace: "default",
+		},
+	}
+
+	// We might need multiple reconciles to get to the result we need, as we return early most of the time.
+	// Let's reconcile a couple times before assertions.
+	for i := 0; i < 3; i++ {
+		_, err := r.Reconcile(context.TODO(), req)
+		if err != nil {
+			t.Fatalf("reconcile: (%v)", err)
+		}
+	}
+
+	configmap := &v12.ConfigMap{}
+	err := client.Get(context.TODO(), types.NamespacedName{
+		Name:      "redis-cluster-config",
+		Namespace: "default",
+	}, configmap)
+	if err != nil {
+		t.Fatalf("Failed to fetch created ConfigMap %v", err)
+	}
+
+	if len(configmap.GetOwnerReferences()) == 0 {
+		t.Fatalf("Owner reference is not set on ConfigMap")
+	}
+	gvk, _ := apiutil.GVKForObject(redisCluster, s)
+	if configmap.GetOwnerReferences()[0].Name != redisCluster.Name || configmap.GetOwnerReferences()[0].Kind != gvk.Kind {
+		t.Fatalf("Owner not correctly set")
+	}
+}

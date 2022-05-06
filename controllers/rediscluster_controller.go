@@ -67,9 +67,64 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 	}
 
-	// At this point we have a valid RedisCluster.
-	// A Redis cluster needs a StatefulSet to run in.
-	// We'll check for an existing Statefulset. If it doesn't exist we'll create one.
+	//region Ensure ConfigMap
+	configMap, err := kubernetes.FetchExistingConfigMap(ctx, r.Client, redisCluster)
+	if err != nil && !errors.IsNotFound(err) {
+		// We've got a legitimate error, we should log the error and exit early
+		logger.Error(err, "Could not check whether configmap exists due to error.")
+		return ctrl.Result{
+			RequeueAfter: 30 * time.Second,
+		}, err
+	}
+	if errors.IsNotFound(err) {
+		configMap, err = kubernetes.CreateConfigMap(ctx, r.Client, redisCluster)
+		if err != nil {
+			logger.Error(err, "Failed to create ConfigMap for RedisCluster")
+			return ctrl.Result{
+				RequeueAfter: 30 * time.Second,
+			}, err
+		}
+
+		logger.Error(err, "Created ConfigMap for RedisCluster. Reconciling in 5 seconds.")
+		return ctrl.Result{
+			RequeueAfter: 5 * time.Second,
+		}, err
+	}
+	//endregion
+
+	//region Set ConfigMap owner reference
+	err = retry.RetryOnConflict(wait.Backoff{
+		Steps:    5,
+		Duration: 2 * time.Second,
+		Factor:   1.0,
+		Jitter:   0.1,
+	}, func() error {
+		configMap, err = kubernetes.FetchExistingConfigMap(ctx, r.Client, redisCluster)
+		if err != nil {
+			// At this point we definitely expect the statefulset to exist.
+			logger.Error(err, "Cannot find configMap")
+			return err
+		}
+		err = ctrl.SetControllerReference(redisCluster, configMap, r.Scheme)
+		if err != nil {
+			logger.Error(err, "Could not set owner reference for configMap")
+			return err
+		}
+		err = r.Client.Update(ctx, configMap)
+		if err != nil {
+			logger.Error(err, "Could not update configmap with owner reference")
+		}
+		return err
+	})
+	if err != nil {
+		logger.Error(err, "Could not set owner reference for statefulset")
+		return ctrl.Result{
+			RequeueAfter: 10 * time.Second,
+		}, err
+	}
+	//endregion
+
+	//region Ensure Statefulset
 	statefulset, err := kubernetes.FetchExistingStatefulset(ctx, r.Client, redisCluster)
 	if err != nil && !errors.IsNotFound(err) {
 		// We've got a legitimate error, we should log the error and exit early
@@ -91,11 +146,14 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 		// We've created the Statefulset, and we can wait a bit before trying to do the rest.
 		// We can trigger a new reconcile for this object in about 5 seconds
+		logger.Error(err, "Created Statefulset for RedisCluster. Reconciling in 5 seconds.")
 		return ctrl.Result{
 			RequeueAfter: 5 * time.Second,
 		}, err
 	}
+	//endregion
 
+	//region Set Statefsulset owner reference
 	err = retry.RetryOnConflict(wait.Backoff{
 		Steps:    5,
 		Duration: 2 * time.Second,
@@ -120,14 +178,12 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return err
 	})
 	if err != nil {
+		logger.Error(err, "Could not set owner reference for statefulset")
 		return ctrl.Result{
 			RequeueAfter: 10 * time.Second,
 		}, err
 	}
-
-	//fmt.Println(statefulset)
-
-	// TODO(user): your logic here
+	//endregion
 
 	return ctrl.Result{}, nil
 }

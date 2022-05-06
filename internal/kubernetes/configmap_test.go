@@ -30,7 +30,7 @@ func TestGetDefaultRedisConfig(t *testing.T) {
 
 //endregion
 
-// region FindExistingConfigMap
+// region FetchExistingConfigMap
 func TestFindExistingConfigMapFetchesConfigMap(t *testing.T) {
 	// Register operator types with the runtime scheme.
 	s := scheme.Scheme
@@ -53,7 +53,7 @@ func TestFindExistingConfigMapFetchesConfigMap(t *testing.T) {
 		},
 	}
 
-	configMap, err := FindExistingConfigMap(context.TODO(), client, cluster)
+	configMap, err := FetchExistingConfigMap(context.TODO(), client, cluster)
 	if err != nil {
 		t.Fatalf("Expected ConfigMap to be found, but received an error %v", err)
 	}
@@ -94,7 +94,7 @@ func TestFindExistingConfigMapFetchesCorrectConfigMap(t *testing.T) {
 		},
 	}
 
-	configMap, err := FindExistingConfigMap(context.TODO(), client, cluster)
+	configMap, err := FetchExistingConfigMap(context.TODO(), client, cluster)
 	if err != nil {
 		t.Fatalf("Expected ConfigMap to be found, but received an error %v", err)
 	}
@@ -117,7 +117,7 @@ func TestFindExistingConfigMapReturnsNotFoundErrorIfNotExists(t *testing.T) {
 		},
 	}
 
-	_, err := FindExistingConfigMap(context.TODO(), client, cluster)
+	_, err := FetchExistingConfigMap(context.TODO(), client, cluster)
 	if err == nil {
 		t.Fatalf("Expected not found error but did not receive any error")
 	}

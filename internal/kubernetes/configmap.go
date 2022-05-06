@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-func FindExistingConfigMap(ctx context.Context, kubeClient client.Client, cluster *v1alpha1.RedisCluster) (*v1.ConfigMap, error) {
+func FetchExistingConfigMap(ctx context.Context, kubeClient client.Client, cluster *v1alpha1.RedisCluster) (*v1.ConfigMap, error) {
 	configMap := &v1.ConfigMap{}
 	err := kubeClient.Get(ctx, types.NamespacedName{
 		Namespace: cluster.Namespace,
