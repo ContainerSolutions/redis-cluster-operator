@@ -38,7 +38,7 @@ func FetchExistingStatefulset(ctx context.Context, kubeClient client.Client, clu
 	return statefulset, err
 }
 
-func CreateStatefulset(ctx context.Context, kubeClient client.Client, cluster *v1alpha1.RedisCluster) (*v1.StatefulSet, error) {
+func createStatefulsetSpec(cluster *v1alpha1.RedisCluster) *v1.StatefulSet {
 	replicasNeeded := cluster.NodesNeeded()
 	statefulset := &v1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
@@ -56,10 +56,28 @@ func CreateStatefulset(ctx context.Context, kubeClient client.Client, cluster *v
 					Labels: GetPodLabels(cluster),
 				},
 				Spec: v12.PodSpec{
+					Volumes: []v12.Volume{
+						{
+							Name: "redis-cluster-config",
+							VolumeSource: v12.VolumeSource{
+								ConfigMap: &v12.ConfigMapVolumeSource{
+									LocalObjectReference: v12.LocalObjectReference{
+										Name: getConfigMapName(cluster),
+									},
+								},
+							},
+						},
+					},
 					Containers: []v12.Container{
 						{
 							Name:  "redis",
 							Image: "redis:7.0.0",
+							Command: []string{
+								"redis-server",
+							},
+							Args: []string{
+								"/usr/local/etc/redis/redis.conf",
+							},
 							Ports: []v12.ContainerPort{
 								{
 									Name:          "redis",
@@ -70,6 +88,12 @@ func CreateStatefulset(ctx context.Context, kubeClient client.Client, cluster *v
 									ContainerPort: 16379,
 								},
 							},
+							VolumeMounts: []v12.VolumeMount{
+								{
+									Name:      "redis-cluster-config",
+									MountPath: "/usr/local/etc/redis",
+								},
+							},
 						},
 					},
 				},
@@ -78,6 +102,11 @@ func CreateStatefulset(ctx context.Context, kubeClient client.Client, cluster *v
 			MinReadySeconds: 10,
 		},
 	}
+	return statefulset
+}
+
+func CreateStatefulset(ctx context.Context, kubeClient client.Client, cluster *v1alpha1.RedisCluster) (*v1.StatefulSet, error) {
+	statefulset := createStatefulsetSpec(cluster)
 	err := kubeClient.Create(ctx, statefulset)
 	return statefulset, err
 }
