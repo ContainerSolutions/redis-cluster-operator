@@ -10,6 +10,7 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"reflect"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"strings"
 	"testing"
 )
 
@@ -134,14 +135,19 @@ func TestGetRedisConfigAsMultilineYaml(t *testing.T) {
 		"port":            "6379",
 		"maxmemory":       "100mb",
 	})
-	expected := `cluster-enabled true
-port 6379
+	expected := `port 6379
 maxmemory 100mb
+cluster-enabled true
 `
-	if got != expected {
-		t.Fatalf(`Expected correct multiline representation. 
-Expected %s 
-Got %s`, expected, got)
+	// We want to test that all the lines are contained from expected to got result.
+	// The order of the string elements i s not guaranteed, so we do it lines by line
+	if len(strings.Split(got, "\n")) != len(strings.Split(expected, "\n")) {
+		t.Fatalf(`The amount of lines in the multiline string does not match what we expected. Expected %d Got %d`, len(strings.Split(expected, "\n")), len(strings.Split(got, "\n")))
+	}
+	for _, expectedLine := range strings.Split(expected, "\n") {
+		if !strings.Contains(got, expectedLine) {
+			t.Fatalf("setting not found in multiline. Expected %s to be in %s", expectedLine, got)
+		}
 	}
 }
 
