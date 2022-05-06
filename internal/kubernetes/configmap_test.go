@@ -8,6 +8,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
+	"reflect"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"testing"
 )
@@ -147,6 +148,60 @@ Got %s`, expected, got)
 //endregion
 
 //region getAppliedRedisConfig
+func TestGetAppliedRedisConfigProcessesAdditionalConfigPassedIntoRedisClusterWithDefault(t *testing.T) {
+	redisConfig := `
+maxmemory 128mb
+maxmemory-samples 5
+`
+	redisCluster := &cachev1alpha1.RedisCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "redis-cluster",
+			Namespace: "default",
+		},
+		Spec: cachev1alpha1.RedisClusterSpec{
+			Masters:           3,
+			ReplicasPerMaster: 1,
+			Config:            redisConfig,
+		},
+	}
+	gotAppliedConfig := getAppliedRedisConfig(redisCluster)
+	expectedAppliedConfig := map[string]string{
+		"maxmemory":            "128mb",
+		"maxmemory-samples":    "5",
+		"cluster-config-file":  "nodes.conf",
+		"cluster-enabled":      "yes",
+		"cluster-node-timeout": "5000",
+		"port":                 "6379",
+	}
+	if !reflect.DeepEqual(gotAppliedConfig, expectedAppliedConfig) {
+		t.Fatalf(`Applied configuration is not what we expect it to be based on inputs.
+Expected: %v
+Got: %v
+`, expectedAppliedConfig, gotAppliedConfig)
+	}
+}
+
+//endregion
+
+//region getRedisConfigFromMultilineYaml
+func TestGetRedisConfigFromMultilineYaml(t *testing.T) {
+	redisConfigString := `maxmemory 128mb
+maxmemory-samples 5
+port 7000
+`
+	gotRedisConfig := getRedisConfigFromMultilineYaml(redisConfigString)
+	expectedRedisConfig := map[string]string{
+		"maxmemory":         "128mb",
+		"maxmemory-samples": "5",
+		"port":              "7000",
+	}
+	if !reflect.DeepEqual(gotRedisConfig, expectedRedisConfig) {
+		t.Fatalf(`Expected String config to be processed correctly. 
+Expected %v
+Got %v`, expectedRedisConfig, gotRedisConfig)
+	}
+}
+
 //endregion
 
 //region createConfigMapSpec

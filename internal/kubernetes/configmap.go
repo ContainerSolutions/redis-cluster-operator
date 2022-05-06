@@ -8,6 +8,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"strings"
 )
 
 func FindExistingConfigMap(ctx context.Context, kubeClient client.Client, cluster *v1alpha1.RedisCluster) (*v1.ConfigMap, error) {
@@ -34,7 +35,10 @@ func getDefaultRedisConfig() map[string]string {
 
 func getAppliedRedisConfig(cluster *v1alpha1.RedisCluster) map[string]string {
 	config := getDefaultRedisConfig()
-	//todo add config in crd
+	redisConfig := getRedisConfigFromMultilineYaml(cluster.Spec.Config)
+	for setting, value := range redisConfig {
+		config[setting] = value
+	}
 	return config
 }
 
@@ -42,6 +46,20 @@ func getRedisConfigAsMultilineYaml(config map[string]string) string {
 	result := ""
 	for setting, value := range config {
 		result += fmt.Sprintf("%s %s\n", setting, value)
+	}
+	return result
+}
+
+func getRedisConfigFromMultilineYaml(config string) map[string]string {
+	result := map[string]string{}
+	for _, settingLine := range strings.Split(config, "\n") {
+		if strings.TrimSpace(settingLine) == "" {
+			continue
+		}
+		settingParts := strings.Split(settingLine, " ")
+		setting := settingParts[0]
+		value := strings.Join(settingParts[1:], " ")
+		result[setting] = value
 	}
 	return result
 }
