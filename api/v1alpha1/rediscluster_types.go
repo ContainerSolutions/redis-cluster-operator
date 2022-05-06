@@ -36,6 +36,9 @@ type RedisClusterSpec struct {
 	// +kubebuilder:validation:Optional
 	// +kubebuilder:default:=0
 	ReplicasPerMaster int32 `json:"replicasPerMaster,omitempty"`
+
+	// Config specifies the Redis config to be set in each redis node. The format matches the format of redis.conf, as a multiline yaml string
+	Config string `json:"config,omitempty"`
 }
 
 // RedisClusterStatus defines the observed state of RedisCluster

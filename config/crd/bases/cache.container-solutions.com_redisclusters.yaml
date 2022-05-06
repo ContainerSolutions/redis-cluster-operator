@@ -35,6 +35,11 @@ spec:
           spec:
             description: RedisClusterSpec defines the desired state of RedisCluster
             properties:
+              config:
+                description: Config specifies the Redis config to be set in each redis
+                  node. The format matches the format of redis.conf, as a multiline
+                  yaml string
+                type: string
               masters:
                 description: Masters specifies how many master nodes should be created
                   in the Redis cluster.
