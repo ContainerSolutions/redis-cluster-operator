@@ -85,7 +85,7 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			}, err
 		}
 
-		logger.Error(err, "Created ConfigMap for RedisCluster. Reconciling in 5 seconds.")
+		logger.Info("Created ConfigMap for RedisCluster. Reconciling in 5 seconds.")
 		return ctrl.Result{
 			RequeueAfter: 5 * time.Second,
 		}, err
@@ -146,7 +146,7 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 		// We've created the Statefulset, and we can wait a bit before trying to do the rest.
 		// We can trigger a new reconcile for this object in about 5 seconds
-		logger.Error(err, "Created Statefulset for RedisCluster. Reconciling in 5 seconds.")
+		logger.Info("Created Statefulset for RedisCluster. Reconciling in 5 seconds.")
 		return ctrl.Result{
 			RequeueAfter: 5 * time.Second,
 		}, err
