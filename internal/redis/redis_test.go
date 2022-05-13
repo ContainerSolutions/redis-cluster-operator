@@ -84,5 +84,4 @@ func TestMeetNodeRunsNodeMeetForNewNode(t *testing.T) {
 		t.Fatalf("Not all of the required Redis commands were run")
 	}
 }
-
 // endregion
