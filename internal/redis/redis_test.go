@@ -135,6 +135,12 @@ func TestMeetNodeRunsNodeMeetForNewNode(t *testing.T) {
 			client, _ := redismock.NewClientMock()
 			return client
 		},
+		NodeAttributes: NodeAttributes{
+			ID:    "123456789",
+			host:  "localhost",
+			port:  "6379",
+			flags: []string{"master"},
+		},
 	}
 	mock.ExpectClusterMeet("localhost", "6379").SetVal("OK")
 	err := redisNode.MeetNode(context.TODO(), &Node{
@@ -142,6 +148,12 @@ func TestMeetNodeRunsNodeMeetForNewNode(t *testing.T) {
 		clientBuilder: func(opt *redis.Options) *redis.Client {
 			client, _ := redismock.NewClientMock()
 			return client
+		},
+		NodeAttributes: NodeAttributes{
+			ID:    "23456789",
+			host:  "localhost",
+			port:  "6379",
+			flags: []string{"master"},
 		},
 	})
 	if err != nil {

@@ -118,9 +118,9 @@ func (n *Node) GetFriends(ctx context.Context) ([]*Node, error) {
 
 // MeetNode let's the node recognise and connect to another Redis Node
 func (n *Node) MeetNode(ctx context.Context, node *Node) error {
-	parts := strings.Split(node.Client.Options().Addr, ":")
-	host := parts[0]
-	port := parts[1]
-	err := n.ClusterMeet(ctx, host, port).Err()
+	//parts := strings.Split(node.Client.Options().Addr, ":")
+	//host := parts[0]
+	//port := parts[1]
+	err := n.ClusterMeet(ctx, node.NodeAttributes.host, node.NodeAttributes.port).Err()
 	return err
 }
