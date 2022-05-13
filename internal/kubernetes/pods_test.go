@@ -79,7 +79,7 @@ func TestFetchRedisPodsFetchesAllRedisPodsExcludingOtherPods(t *testing.T) {
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "redis-cluster-789",
 			Namespace: "default",
-			Labels:    labels.Set{
+			Labels: labels.Set{
 				RedisNodeNameStatefulsetLabel: cluster.Name + "-foo",
 				RedisNodeComponentLabel:       "redis",
 			},
@@ -97,4 +97,5 @@ func TestFetchRedisPodsFetchesAllRedisPodsExcludingOtherPods(t *testing.T) {
 		t.Fatalf("Received wrong pods. Expected redis-cluster-123, Got %s", pods.Items[0].Name)
 	}
 }
+
 // endregion
