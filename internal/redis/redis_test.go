@@ -7,6 +7,7 @@ import (
 	"testing"
 )
 
+// region GetFriends
 func TestRedisNodeGetFriendsReturnsKnowsNodes(t *testing.T) {
 	db, mock := redismock.NewClientMock()
 	redisNode := Node{
@@ -55,3 +56,33 @@ func TestRedisNodeGetFriendsReturnsEmptySliceIfNotFriends(t *testing.T) {
 		t.Fatalf("Did not receive the right amount of friends for node")
 	}
 }
+
+// endregion
+
+// region MeetNode
+func TestMeetNodeRunsNodeMeetForNewNode(t *testing.T) {
+	db, mock := redismock.NewClientMock()
+	redisNode := Node{
+		Client: db,
+		clientBuilder: func(opt *redis.Options) *redis.Client {
+			client, _ := redismock.NewClientMock()
+			return client
+		},
+	}
+	mock.ExpectClusterMeet("localhost", "6379").SetVal("OK")
+	err := redisNode.MeetNode(context.TODO(), &Node{
+		Client: db,
+		clientBuilder: func(opt *redis.Options) *redis.Client {
+			client, _ := redismock.NewClientMock()
+			return client
+		},
+	})
+	if err != nil {
+		t.Fatalf("Received error while trying to meet nodes %v", err)
+	}
+	if mock.ExpectationsWereMet() != nil {
+		t.Fatalf("Not all of the required Redis commands were run")
+	}
+}
+
+// endregion

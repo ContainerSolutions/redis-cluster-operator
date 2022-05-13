@@ -16,9 +16,10 @@ type Node struct {
 	clientBuilder func(opt *redis.Options) *redis.Client
 }
 
-func (node *Node) GetFriends(ctx context.Context) ([]*Node, error) {
+// GetFriends returns a list of all the other Redis nodes that this node knows about
+func (n *Node) GetFriends(ctx context.Context) ([]*Node, error) {
 	var result []*Node
-	nodes, err := node.ClusterNodes(ctx).Result()
+	nodes, err := n.ClusterNodes(ctx).Result()
 	if err != nil {
 		return result, err
 	}
@@ -35,14 +36,23 @@ func (node *Node) GetFriends(ctx context.Context) ([]*Node, error) {
 		}
 		address := strings.Split(friendFields[1], "@")[0]
 		result = append(result, &Node{
-			node.clientBuilder(&redis.Options{
+			n.clientBuilder(&redis.Options{
 				Addr:               address,
 			}),
 			NodeAttributes{
 				ID: friendFields[0],
 			},
-			node.clientBuilder,
+			n.clientBuilder,
 		})
 	}
 	return result, err
+}
+
+// MeetNode let's the node recognise and connect to another Redis Node
+func (n *Node) MeetNode(ctx context.Context, node *Node) error {
+	parts := strings.Split(node.Client.Options().Addr, ":")
+	host := parts[0]
+	port := parts[1]
+	err := n.ClusterMeet(ctx, host, port).Err()
+	return err
 }
