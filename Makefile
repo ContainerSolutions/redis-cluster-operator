@@ -231,3 +231,24 @@ catalog-build: opm ## Build a catalog image.
 .PHONY: catalog-push
 catalog-push: ## Push a catalog image.
 	$(MAKE) docker-push IMG=$(CATALOG_IMG)
+
+##@ Development
+DEV_POD := $(shell kubectl get pods -l control-plane=controller-manager -o json | jq -r .items[0].metadata.name)
+.PHONY: all-dev
+all-dev: install-dev upload-dev run-dev  ## Install and run development mode
+
+.PHONY: install-dev
+install-dev: generate manifests ## Install development components
+	echo "## Installing manifests ..."
+	$(KUSTOMIZE) build config/crd | kubectl apply -f -
+	$(KUSTOMIZE) build config/rbac | kubectl apply -f -
+	echo "## Installing dev pod ..."
+	$(KUSTOMIZE) build config/development | kubectl apply -f -
+
+.PHONY: upload-dev
+upload-dev:  ## Upload application into development pod
+	./bin/krsync -av --exclude .idea --exclude .git --exclude bin --exclude config --progress --stats ./ $(DEV_POD):/workspace
+
+.PHONY: run-dev
+run-dev: upload-dev  ## Run application in development pod
+	kubectl exec -it $(DEV_POD) -- go run main.go
