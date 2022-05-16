@@ -4,8 +4,28 @@ import (
 	"context"
 	"errors"
 	"github.com/go-redis/redis/v8"
+	"strconv"
 	"strings"
 )
+
+func ProcessSlotStrings(slotStrings []string) []int32 {
+	var result []int32
+	for _, slotString := range slotStrings {
+		slotParts := strings.Split(slotString, "-")
+		if len(slotParts) == 2 {
+			slotStart, _ := strconv.Atoi(slotParts[0])
+			slotEnd, _ := strconv.Atoi(slotParts[1])
+			for slot := slotStart; slot <= slotEnd; slot++ {
+				result = append(result, int32(slot))
+			}
+		}
+		if len(slotParts) == 1 {
+			slot, _ := strconv.Atoi(slotParts[0])
+			result = append(result, int32(slot))
+		}
+	}
+	return result
+}
 
 // NodeAttributes represents the data returned from the CLUSTER NODES commands.
 // The format returned from Redis contains the fields, split by spaces
@@ -16,11 +36,13 @@ import (
 // <ip:port@cport> part has the IP and port of the redis server, with the gossip port after @
 // <flags> is a string of flags separated by comma (,). Useful flags include master|slave|myself. Myself is the indicator that this line is for the calling node
 // <master> represents the node ID that is being replicated, if the node is a slave. if it is not replicating anything it will be replaced by a dash (-)
+// <slot>... represents slot ranges assigned to this node. The format is ranges, or single numbers. 0-4 represents all slots from 0 to 4. 8 represents the single slot 8
 type NodeAttributes struct {
 	ID    string
 	host  string
 	port  string
 	flags []string
+	slots []int32
 }
 
 func NewNodeAttributes(nodeString string) NodeAttributes {

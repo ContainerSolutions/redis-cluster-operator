@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/go-redis/redis/v8"
 	"github.com/go-redis/redismock/v8"
+	"reflect"
 	"testing"
 )
 
@@ -22,6 +23,23 @@ func TestNodeAttributes_HasFlag(t *testing.T) {
 	attributes := NewNodeAttributes("9fd8800b31d569538917c0aaeaa5588e2f9c6edf 10.244.0.218:6379@16379 myself,master - 0 1652373716000 0 connected")
 	if !attributes.HasFlag("myself") || !attributes.HasFlag("master") {
 		t.Fatalf("Flags are not being marked correctly")
+	}
+}
+
+//func TestNodeAttributes_LoadsSlotInformation(t *testing.T) {
+//	attributes := NewNodeAttributes("103791967781b9db4ae663dd060b51c442bd7105 10.244.0.250:6379@16379 master - 0 1652695701569 5 connected 0-9 11-12 14 16-19")
+//	expectedSlots := []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 14, 16, 17, 18, 19}
+//	if attr
+//}
+// endregion
+
+// region ProcessSlotString
+func TestProcessSlotString(t *testing.T) {
+	// 0-9 11-12 14 16-19
+	got := ProcessSlotStrings([]string{"0-9", "11-12", "14", "16-19"})
+	expected := []int32{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 14, 16, 17, 18, 19}
+	if !reflect.DeepEqual(got, expected) {
+		t.Fatalf("Expcted slot list of %v, got %v", expected, got)
 	}
 }
 
