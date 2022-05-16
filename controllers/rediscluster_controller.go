@@ -220,13 +220,22 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 	}
 
-	err = clusterNodes.ClusterMeet(ctx)
-	if err != nil {
-		return r.RequeueError(ctx, "Could not meet all nodes together", err)
+	// todo we should check whether a cluster meet is necessary before just spraying cluster meets.
+	// This can also be augmented by doing cluster meet for all ready nodes, and ignoring any none ready ones.
+	// If the amount of ready pods is equal to the amount of nodes needed, we probably have some additional nodes we need to remove.
+	// We can forget these additional nodes, as they are probably nodes which pods got killed.
+	if len(clusterNodes.Nodes) == int(redisCluster.NodesNeeded()) {
+		logger.Info("Meeting Redis nodes")
+		err = clusterNodes.ClusterMeet(ctx)
+		if err != nil {
+			return r.RequeueError(ctx, "Could not meet all nodes together", err)
+		}
 	}
 	// endregion
 
-	return ctrl.Result{}, nil
+	return ctrl.Result{
+		RequeueAfter: 30 * time.Second,
+	}, nil
 }
 
 func (r *RedisClusterReconciler) RequeueError(ctx context.Context, message string, err error) (ctrl.Result, error) {

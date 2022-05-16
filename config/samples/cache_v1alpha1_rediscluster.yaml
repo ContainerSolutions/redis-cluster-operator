@@ -4,4 +4,4 @@ metadata:
   name: rediscluster-sample
 spec:
   masters: 3
-  replicasPerMaster: 0
+  replicasPerMaster: 1
