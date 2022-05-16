@@ -68,6 +68,8 @@ func NewNode(ctx context.Context, opt *redis.Options, clientBuilder func(opt *re
 		return nil, err
 	}
 	node.NodeAttributes = attributes
+	node.NodeAttributes.host = strings.Split(opt.Addr, ":")[0]
+	node.NodeAttributes.port = strings.Split(opt.Addr, ":")[1]
 	return node, nil
 }
 

@@ -19,6 +19,9 @@ package controllers
 import (
 	"context"
 	"github.com/containersolutions/redis-cluster-operator/internal/kubernetes"
+	"github.com/containersolutions/redis-cluster-operator/internal/redis"
+	redis2 "github.com/go-redis/redis/v8"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
@@ -43,6 +46,7 @@ type RedisClusterReconciler struct {
 //+kubebuilder:rbac:groups=cache.container-solutions.com,resources=redisclusters/finalizers,verbs=update
 //+kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;create;update;patch;delete
 //+kubebuilder:rbac:groups="apps",resources=statefulsets,verbs=get;list;watch;create;update;patch;delete
+//+kubebuilder:rbac:groups="",resources=pods,verbs=get;list;watch
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
@@ -187,7 +191,50 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 	//endregion
 
+	// region Ensure Cluster Meet
+	pods, err := kubernetes.FetchRedisPods(ctx, r.Client, redisCluster)
+	if err != nil {
+		logger.Error(err, "Could not fetch pods for redis cluster")
+		return ctrl.Result{
+			RequeueAfter: 10 * time.Second,
+		}, err
+	}
+
+	clusterNodes := redis.ClusterNodes{}
+	for _, pod := range pods.Items {
+		if pod.Status.Phase == v1.PodRunning {
+			node, err := redis.NewNode(ctx, &redis2.Options{
+				Addr: pod.Status.PodIP + ":6379",
+			}, redis2.NewClient)
+			if err != nil {
+				return r.RequeueError(ctx, "Could not load Redis Client", err)
+			}
+
+			// make sure that the node knows about itself
+			// This is necessary, as the nodes often startup without being able to retrieve their own IP address
+			err = node.Client.ClusterMeet(ctx, pod.Status.PodIP, "6379").Err()
+			if err != nil {
+				return r.RequeueError(ctx, "Could not let node meet itself", err)
+			}
+			clusterNodes.Nodes = append(clusterNodes.Nodes, node)
+		}
+	}
+
+	err = clusterNodes.ClusterMeet(ctx)
+	if err != nil {
+		return r.RequeueError(ctx, "Could not meet all nodes together", err)
+	}
+	// endregion
+
 	return ctrl.Result{}, nil
+}
+
+func (r *RedisClusterReconciler) RequeueError(ctx context.Context, message string, err error) (ctrl.Result, error) {
+	logger := log.FromContext(ctx)
+	logger.Error(err, message)
+	return ctrl.Result{
+		RequeueAfter: 10 * time.Second,
+	}, err
 }
 
 // SetupWithManager sets up the controller with the Manager.
