@@ -26,11 +26,14 @@ func TestNodeAttributes_HasFlag(t *testing.T) {
 	}
 }
 
-//func TestNodeAttributes_LoadsSlotInformation(t *testing.T) {
-//	attributes := NewNodeAttributes("103791967781b9db4ae663dd060b51c442bd7105 10.244.0.250:6379@16379 master - 0 1652695701569 5 connected 0-9 11-12 14 16-19")
-//	expectedSlots := []int{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 14, 16, 17, 18, 19}
-//	if attr
-//}
+func TestNodeAttributes_LoadsSlotInformation(t *testing.T) {
+	attributes := NewNodeAttributes("103791967781b9db4ae663dd060b51c442bd7105 10.244.0.250:6379@16379 master - 0 1652695701569 5 connected 0-9 11-12 14 16-19")
+	expectedSlots := []int32{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 14, 16, 17, 18, 19}
+	if !reflect.DeepEqual(attributes.slots, expectedSlots) {
+		t.Fatalf("Expected assigned slot to be %v, got %v", expectedSlots, attributes.slots)
+	}
+}
+
 // endregion
 
 // region ProcessSlotString

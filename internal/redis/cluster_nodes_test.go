@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/go-redis/redis/v8"
 	"github.com/go-redis/redismock/v8"
+	"reflect"
 	"testing"
 )
 
@@ -57,5 +58,29 @@ func TestClusterMeetMeetsAllNodes(t *testing.T) {
 		t.Fatalf("Node 2 did not receive all the cluster meet commands it was expected.")
 	}
 }
+
 // endregion
 
+// region GetAssignedSlots
+func TestGetAssignedSlot(t *testing.T) {
+	client, mock := redismock.NewClientMock()
+	mock.ExpectClusterNodes().SetVal(`9fd8800b31d569538917c0aaeaa5588e2f9c6edf 10.20.30.40:6379@16379 myself,master - 0 1652373716000 0 connected 0-3 5 7-9
+`)
+	node, err := NewNode(context.TODO(), &redis.Options{
+		Addr: "10.20.30.40:6379",
+	}, func(opt *redis.Options) *redis.Client {
+		return client
+	})
+	if err != nil {
+		t.Fatalf("received error while trying to create node %v", err)
+	}
+	clusterNodes := ClusterNodes{
+		Nodes: []*Node{node},
+	}
+	expected := []int32{0, 1, 2, 3, 5, 7, 8, 9}
+	if !reflect.DeepEqual(clusterNodes.GetAssignedSlots(), expected) {
+		t.Fatalf("Did not get correct list of assigned slots. Expected %v, Got %v", expected, clusterNodes.GetAssignedSlots())
+	}
+}
+
+// endregion

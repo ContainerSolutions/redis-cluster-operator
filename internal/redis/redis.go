@@ -55,6 +55,7 @@ func NewNodeAttributes(nodeString string) NodeAttributes {
 		host:  addressParts[0],
 		port:  addressParts[1],
 		flags: strings.Split(friendFields[2], ","),
+		slots: ProcessSlotStrings(friendFields[8:]),
 	}
 }
 

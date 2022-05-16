@@ -17,3 +17,11 @@ func (c *ClusterNodes) ClusterMeet(ctx context.Context) error {
 	}
 	return nil
 }
+
+func (c *ClusterNodes) GetAssignedSlots() []int32 {
+	var result []int32
+	for _, node := range c.Nodes {
+		result = append(result, node.NodeAttributes.slots...)
+	}
+	return result
+}
