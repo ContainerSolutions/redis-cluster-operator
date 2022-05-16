@@ -8,6 +8,10 @@ import (
 	"strings"
 )
 
+const (
+	TotalRedisSlots = 16384
+)
+
 func ProcessSlotStrings(slotStrings []string) []int32 {
 	var result []int32
 	for _, slotString := range slotStrings {
