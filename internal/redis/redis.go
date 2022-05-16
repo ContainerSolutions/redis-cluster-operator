@@ -91,6 +91,10 @@ func (n *Node) GetSelfAttributes(ctx context.Context) (NodeAttributes, error) {
 	return NodeAttributes{}, errors.New("could not find myself in nodes list")
 }
 
+func (n *Node) IsMaster() bool {
+	return n.NodeAttributes.HasFlag("master")
+}
+
 // GetFriends returns a list of all the other Redis nodes that this node knows about
 func (n *Node) GetFriends(ctx context.Context) ([]*Node, error) {
 	var result []*Node

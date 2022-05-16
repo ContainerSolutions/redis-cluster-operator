@@ -165,3 +165,44 @@ func TestMeetNodeRunsNodeMeetForNewNode(t *testing.T) {
 }
 
 // endregion
+
+// region IsMaster
+func TestNode_IsMasterReturnsTrueIfMaster(t *testing.T) {
+	db, mock := redismock.NewClientMock()
+	mock.ExpectClusterNodes().SetVal(`335e5ceff013eeebdbdb71bb65b4c1aeaf6a06f5 10.244.0.156:6379@16379 master - 0 1652373719041 2 connected
+9fd8800b31d569538917c0aaeaa5588e2f9c6edf 10.244.0.218:6379@16379 myself,master - 0 1652373716000 0 connected
+`)
+	node, err := NewNode(context.TODO(), &redis.Options{
+		Addr: "10.244.0.218:6379",
+	}, func(opt *redis.Options) *redis.Client {
+		return db
+	})
+	if err != nil {
+		t.Fatalf("Received error while trying to create node %v", err)
+	}
+
+	if node.IsMaster() != true {
+		t.Fatalf("A master returned false for IsMaster")
+	}
+}
+
+func TestNode_IsMasterReturnsFalseIfReplica(t *testing.T) {
+	db, mock := redismock.NewClientMock()
+	mock.ExpectClusterNodes().SetVal(`335e5ceff013eeebdbdb71bb65b4c1aeaf6a06f5 10.244.0.156:6379@16379 master - 0 1652373719041 2 connected
+9fd8800b31d569538917c0aaeaa5588e2f9c6edf 10.244.0.218:6379@16379 myself,slave - 0 1652373716000 0 connected
+`)
+	node, err := NewNode(context.TODO(), &redis.Options{
+		Addr: "10.244.0.218:6379",
+	}, func(opt *redis.Options) *redis.Client {
+		return db
+	})
+	if err != nil {
+		t.Fatalf("Received error while trying to create node %v", err)
+	}
+
+	if node.IsMaster() != false {
+		t.Fatalf("A replica returned true for IsMaster")
+	}
+}
+
+// endregion
