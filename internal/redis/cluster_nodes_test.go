@@ -7,6 +7,7 @@ import (
 	"testing"
 )
 
+// region ClusterMeet
 func TestClusterMeetMeetsAllNodes(t *testing.T) {
 	node1Client, node1Mock := redismock.NewClientMock()
 	node1Mock.ExpectClusterNodes().SetVal(`9fd8800b31d569538917c0aaeaa5588e2f9c6edf 10.20.30.40:6379@16379 myself,master - 0 1652373716000 0 connected
@@ -56,3 +57,5 @@ func TestClusterMeetMeetsAllNodes(t *testing.T) {
 		t.Fatalf("Node 2 did not receive all the cluster meet commands it was expected.")
 	}
 }
+// endregion
+
