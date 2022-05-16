@@ -84,3 +84,27 @@ func TestGetAssignedSlot(t *testing.T) {
 }
 
 // endregion
+
+// region GetMissingSlots
+func TestGetMissingSlots(t *testing.T) {
+	client, mock := redismock.NewClientMock()
+	mock.ExpectClusterNodes().SetVal(`9fd8800b31d569538917c0aaeaa5588e2f9c6edf 10.20.30.40:6379@16379 myself,master - 0 1652373716000 0 connected 0-16380
+`)
+	node, err := NewNode(context.TODO(), &redis.Options{
+		Addr: "10.20.30.40:6379",
+	}, func(opt *redis.Options) *redis.Client {
+		return client
+	})
+	if err != nil {
+		t.Fatalf("received error while trying to create node %v", err)
+	}
+	clusterNodes := ClusterNodes{
+		Nodes: []*Node{node},
+	}
+	expected := []int32{16381, 16382, 16383}
+	if !reflect.DeepEqual(clusterNodes.GetMissingSlots(), expected) {
+		t.Fatalf("Did not get correct list of missing slots. Expected %v, Got %v", expected, clusterNodes.GetMissingSlots())
+	}
+}
+
+// endregion
