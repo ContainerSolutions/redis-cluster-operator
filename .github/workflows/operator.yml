@@ -24,6 +24,8 @@ jobs:
       - setup
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v2
+
       - name: Download mods
         run: go mod download
 
