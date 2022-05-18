@@ -56,7 +56,7 @@ func (c *ClusterNodes) CalculateSlotAssignment() map[*Node][]int32 {
 	// We add one for the remainder, as 16834 does not go even into an uneven amount of nodes.
 	// By adding one to each node, we don't need a check after to see whether there are unassigned slots left,
 	// as assignable slots will be less than slotsNeededPerNode * len(nodes).
-	slotsNeededPerNode := int(TotalRedisSlots / len(c.Nodes)) + 1
+	slotsNeededPerNode := int(TotalRedisSlots/len(c.Nodes)) + 1
 	slotsStillToAssign := c.GetMissingSlots()
 	for _, node := range c.Nodes {
 		if len(node.NodeAttributes.slots) < slotsNeededPerNode {

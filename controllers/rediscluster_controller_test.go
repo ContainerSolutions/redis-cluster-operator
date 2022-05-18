@@ -94,6 +94,10 @@ func TestRedisClusterReconciler_Reconcile_CreatesStatefulsetIfDoesntExist(t *tes
 			Name:      "redis-cluster",
 			Namespace: "default",
 		},
+		Spec: cachev1alpha1.RedisClusterSpec{
+			Masters:           3,
+			ReplicasPerMaster: 1,
+		},
 	})
 	client := clientBuilder.Build()
 
@@ -139,6 +143,10 @@ func TestRedisClusterReconciler_Reconcile_DoesNotFailIfStatefulsetExists(t *test
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "redis-cluster",
 			Namespace: "default",
+		},
+		Spec: cachev1alpha1.RedisClusterSpec{
+			Masters:           3,
+			ReplicasPerMaster: 1,
 		},
 	}, &v1.StatefulSet{
 		ObjectMeta: metav1.ObjectMeta{
@@ -190,6 +198,10 @@ func TestRedisClusterReconciler_Reconcile_StatefulsetHasOwnerReferenceSetToRedis
 			Name:      "redis-cluster",
 			Namespace: "default",
 			UID:       "5b85970f-d70e-4f32-a9f7-12b2cc81f125",
+		},
+		Spec: cachev1alpha1.RedisClusterSpec{
+			Masters:           3,
+			ReplicasPerMaster: 1,
 		},
 	}
 
@@ -248,6 +260,10 @@ func TestRedisClusterReconciler_Reconcile_CreatesConfigMapForRedisCluster(t *tes
 			Name:      "redis-cluster",
 			Namespace: "default",
 		},
+		Spec: cachev1alpha1.RedisClusterSpec{
+			Masters:           3,
+			ReplicasPerMaster: 1,
+		},
 	}
 
 	clientBuilder := fake.NewClientBuilder()
@@ -271,7 +287,7 @@ func TestRedisClusterReconciler_Reconcile_CreatesConfigMapForRedisCluster(t *tes
 
 	// We might need multiple reconciles to get to the result we need, as we return early most of the time.
 	// Let's reconcile a couple times before assertions.
-	for i := 0; i < 3; i++ {
+	for i := 0; i < 8; i++ {
 		_, err := r.Reconcile(context.TODO(), req)
 		if err != nil {
 			t.Fatalf("reconcile: (%v)", err)
@@ -304,6 +320,10 @@ func TestRedisClusterReconciler_Reconcile_DoesNotFailIfConfigMapExists(t *testin
 			Name:      "redis-cluster",
 			Namespace: "default",
 		},
+		Spec: cachev1alpha1.RedisClusterSpec{
+			Masters:           3,
+			ReplicasPerMaster: 1,
+		},
 	}
 
 	clientBuilder := fake.NewClientBuilder()
@@ -335,7 +355,7 @@ func TestRedisClusterReconciler_Reconcile_DoesNotFailIfConfigMapExists(t *testin
 
 	// We might need multiple reconciles to get to the result we need, as we return early most of the time.
 	// Let's reconcile a couple times before assertions.
-	for i := 0; i < 3; i++ {
+	for i := 0; i < 8; i++ {
 		_, err := r.Reconcile(context.TODO(), req)
 		if err != nil {
 			t.Fatalf("reconcile: (%v)", err)
@@ -370,6 +390,10 @@ func TestRedisClusterReconciler_Reconcile_ConfigMapHasOwnerReferenceSetToRedisCl
 			Namespace: "default",
 			UID:       "5b85970f-d70e-4f32-a9f7-12b2cc81f125",
 		},
+		Spec: cachev1alpha1.RedisClusterSpec{
+			Masters:           3,
+			ReplicasPerMaster: 1,
+		},
 	}
 
 	clientBuilder := fake.NewClientBuilder()
@@ -393,7 +417,7 @@ func TestRedisClusterReconciler_Reconcile_ConfigMapHasOwnerReferenceSetToRedisCl
 
 	// We might need multiple reconciles to get to the result we need, as we return early most of the time.
 	// Let's reconcile a couple times before assertions.
-	for i := 0; i < 3; i++ {
+	for i := 0; i < 8; i++ {
 		_, err := r.Reconcile(context.TODO(), req)
 		if err != nil {
 			t.Fatalf("reconcile: (%v)", err)

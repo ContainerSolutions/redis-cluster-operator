@@ -19,9 +19,9 @@ package controllers
 import (
 	"context"
 	"github.com/containersolutions/redis-cluster-operator/internal/kubernetes"
-	"github.com/containersolutions/redis-cluster-operator/internal/redis"
-	redis2 "github.com/go-redis/redis/v8"
-	v1 "k8s.io/api/core/v1"
+	redis_internal "github.com/containersolutions/redis-cluster-operator/internal/redis"
+	"github.com/containersolutions/redis-cluster-operator/internal/utils"
+	"github.com/go-redis/redis/v8"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/util/retry"
@@ -191,21 +191,17 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 	//endregion
 
-	// region Ensure Cluster Meet
 	pods, err := kubernetes.FetchRedisPods(ctx, r.Client, redisCluster)
 	if err != nil {
-		logger.Error(err, "Could not fetch pods for redis cluster")
-		return ctrl.Result{
-			RequeueAfter: 10 * time.Second,
-		}, err
+		return r.RequeueError(ctx, "Could not fetch pods for redis cluster", err)
 	}
 
-	clusterNodes := redis.ClusterNodes{}
+	clusterNodes := redis_internal.ClusterNodes{}
 	for _, pod := range pods.Items {
-		if pod.Status.Phase == v1.PodRunning {
-			node, err := redis.NewNode(ctx, &redis2.Options{
+		if utils.IsPodReady(&pod) {
+			node, err := redis_internal.NewNode(ctx, &redis.Options{
 				Addr: pod.Status.PodIP + ":6379",
-			}, redis2.NewClient)
+			}, redis.NewClient)
 			if err != nil {
 				return r.RequeueError(ctx, "Could not load Redis Client", err)
 			}
@@ -220,18 +216,48 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 	}
 
-	// todo we should check whether a cluster meet is necessary before just spraying cluster meets.
-	// This can also be augmented by doing cluster meet for all ready nodes, and ignoring any none ready ones.
-	// If the amount of ready pods is equal to the amount of nodes needed, we probably have some additional nodes we need to remove.
-	// We can forget these additional nodes, as they are probably nodes which pods got killed.
-	if len(clusterNodes.Nodes) == int(redisCluster.NodesNeeded()) {
-		logger.Info("Meeting Redis nodes")
-		err = clusterNodes.ClusterMeet(ctx)
-		if err != nil {
-			return r.RequeueError(ctx, "Could not meet all nodes together", err)
-		}
+	allPodsReady := len(clusterNodes.Nodes) == int(redisCluster.NodesNeeded())
+	if !allPodsReady {
+		logger.Info("Not all pods are ready. Reconciling again in 10 seconds")
+		return ctrl.Result{
+			RequeueAfter: 10 * time.Second,
+		}, nil
 	}
-	// endregion
+
+	if allPodsReady {
+		// region Ensure Cluster Meet
+
+		// todo we should check whether a cluster meet is necessary before just spraying cluster meets.
+		// This can also be augmented by doing cluster meet for all ready nodes, and ignoring any none ready ones.
+		// If the amount of ready pods is equal to the amount of nodes needed, we probably have some additional nodes we need to remove.
+		// We can forget these additional nodes, as they are probably nodes which pods got killed.
+		if len(clusterNodes.Nodes) == int(redisCluster.NodesNeeded()) {
+			logger.Info("Meeting Redis nodes")
+			err = clusterNodes.ClusterMeet(ctx)
+			if err != nil {
+				return r.RequeueError(ctx, "Could not meet all nodes together", err)
+			}
+		}
+		// endregion
+
+		// region assign slots
+		logger.Info("Assigning missing slots")
+		slotsAssignments := clusterNodes.CalculateSlotAssignment()
+		for node, slots := range slotsAssignments {
+			if len(slots) == 0 {
+				continue
+			}
+			var slotsInt []int
+			for _, slot := range slots {
+				slotsInt = append(slotsInt, int(slot))
+			}
+			err = node.ClusterAddSlots(ctx, slotsInt...).Err()
+			if err != nil {
+				return r.RequeueError(ctx, "Could not assign node slots", err)
+			}
+		}
+		// endregion
+	}
 
 	return ctrl.Result{
 		RequeueAfter: 30 * time.Second,
