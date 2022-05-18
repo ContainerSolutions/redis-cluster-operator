@@ -5,10 +5,13 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  release:
+    types:
+      - created
 
 jobs:
 
-  setup:
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -19,13 +22,6 @@ jobs:
           # We specifically use 1.17 as Operator SDK does not yet support 1.18
           go-version: 1.17
 
-  test:
-    needs:
-      - setup
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v2
-
       - name: Download mods
         run: go mod download
 
@@ -34,7 +30,7 @@ jobs:
 
   build:
     needs:
-      - setup
+      - test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -45,19 +41,26 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
 
-      - name: Build Images
-        uses: docker/build-push-action@v3
-        with:
-          push: false
-          platforms: linux/amd64,linux/arm64
-          tags: |
-            docker.io/containersol/redis-cluster-operator:latest
-
       - name: Docker meta
         id: meta
-        uses: docker/metadata-action@v3
+        uses: docker/metadata-action@v4
         with:
-          images: docker.io/containersol/redis-cluster-operator
+          images: |
+            docker.io/containersol/redis-cluster-operator
+          tags: |
+            latest
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v3
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name == 'release' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
 
       - name: Check Tags
         run: echo ${{ steps.meta.outputs.tags }}
