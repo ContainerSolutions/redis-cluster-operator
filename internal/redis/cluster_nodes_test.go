@@ -108,3 +108,50 @@ func TestGetMissingSlots(t *testing.T) {
 }
 
 // endregion
+
+func TestCalculateSlotAssignment(t *testing.T) {
+	node1, err := NewNode(context.TODO(), &redis.Options{
+		Addr: "10.20.30.40:6379",
+	}, func(opt *redis.Options) *redis.Client {
+		client, mock := redismock.NewClientMock()
+		mock.ExpectClusterNodes().SetVal(`9fd8800b31d569538917c0aaeaa5588e2f9c6edf 10.20.30.40:6379@16379 myself,master - 0 1652373716000 0 connected 8202-16383
+9fd8800b31d569538917c0aaeaa5588e2f9c6edg 10.20.30.41:6379@16379 master - 0 1652373716000 0 connected 0-8180 
+`)
+		return client
+	})
+	if err != nil {
+		t.Fatalf("received error while trying to create node %v", err)
+	}
+	node2, err := NewNode(context.TODO(), &redis.Options{
+		Addr: "10.20.30.41:6379",
+	}, func(opt *redis.Options) *redis.Client {
+		client, mock := redismock.NewClientMock()
+		mock.ExpectClusterNodes().SetVal(`9fd8800b31d569538917c0aaeaa5588e2f9c6edf 10.20.30.40:6379@16379 master - 0 1652373716000 0 connected 8202-16383
+9fd8800b31d569538917c0aaeaa5588e2f9c6edg 10.20.30.41:6379@16379 myself,master - 0 1652373716000 0 connected 0-8180 
+`)
+		return client
+	})
+	if err != nil {
+		t.Fatalf("received error while trying to create node %v", err)
+	}
+	clusterNodes := ClusterNodes{
+		Nodes: []*Node{node1, node2},
+	}
+	got := clusterNodes.CalculateSlotAssignment()
+
+	var gotNodeIds []string
+	var gotSlots [][]int32
+	for node, slots := range got {
+		gotNodeIds = append(gotNodeIds, node.NodeAttributes.ID)
+		gotSlots = append(gotSlots, slots)
+	}
+	if !reflect.DeepEqual(gotNodeIds, []string{"9fd8800b31d569538917c0aaeaa5588e2f9c6edg", "9fd8800b31d569538917c0aaeaa5588e2f9c6edf"}) &&
+		!reflect.DeepEqual(gotNodeIds, []string{"9fd8800b31d569538917c0aaeaa5588e2f9c6edf", "9fd8800b31d569538917c0aaeaa5588e2f9c6edg"}) {
+		t.Fatalf("Slot Assignment Calculation did not return correct nodes. Expected %v Got %v", []string{"9fd8800b31d569538917c0aaeaa5588e2f9c6edf", "9fd8800b31d569538917c0aaeaa5588e2f9c6edg"}, gotNodeIds)
+	}
+
+	if !reflect.DeepEqual(gotSlots, [][]int32{{8181, 8182, 8183, 8184, 8185, 8186, 8187, 8188, 8189, 8190, 8191}, {8192, 8193, 8194, 8195, 8196, 8197, 8198, 8199, 8200, 8201}}) &&
+		!reflect.DeepEqual(gotSlots, [][]int32{{8192, 8193, 8194, 8195, 8196, 8197, 8198, 8199, 8200, 8201}, {8181, 8182, 8183, 8184, 8185, 8186, 8187, 8188, 8189, 8190, 8191}}) {
+		t.Fatalf("Slot Assignment Calculation did not return correct slot assignments. Expected %v Got %v", [][]int32{{8192, 8193, 8194, 8195, 8196, 8197, 8198, 8199, 8200, 8201}, {8181, 8182, 8183, 8184, 8185, 8186, 8187, 8188, 8189, 8190, 8191}}, gotSlots)
+	}
+}
