@@ -19,5 +19,8 @@ jobs:
           # We specifically use 1.17 as Operator SDK does not yet support 1.18
           go-version: 1.17
 
+      - name: Download mods
+        run: go get ./...
+
       - name: Test
         run: make test
