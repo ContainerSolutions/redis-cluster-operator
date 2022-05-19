@@ -9,4 +9,4 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: redis-cluster-operator-manager
-  namespace: default
+  namespace: redis-cluster-operator

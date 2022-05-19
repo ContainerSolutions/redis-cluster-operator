@@ -3,8 +3,8 @@ kind: Service
 metadata:
   labels:
     control-plane: redis-cluster-operator
-  name: redis-cluster-operator-metrics-service
-  namespace: default
+  name: manager-metrics-service
+  namespace: redis-cluster-operator
 spec:
   ports:
   - name: https

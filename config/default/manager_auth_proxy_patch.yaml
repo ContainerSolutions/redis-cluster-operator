@@ -4,7 +4,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: manager
-  namespace: default
+  namespace: redis-cluster-operator
 spec:
   template:
     spec:

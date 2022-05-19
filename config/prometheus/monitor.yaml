@@ -6,7 +6,7 @@ metadata:
   labels:
     control-plane: redis-cluster-operator
   name: redis-cluster-operator-metrics-monitor
-  namespace: default
+  namespace: redis-cluster-operator
 spec:
   endpoints:
     - path: /metrics
