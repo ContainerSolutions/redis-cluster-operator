@@ -40,7 +40,9 @@ To install or upgrade the operator
 kubectl apply -f https://github.com/ContainerSolutions/redis-cluster-operator/releases/latest/download/bundle.yml
 ```
 
-This will install the Operator in a new namespace `redis-cluster-operator`.
+This will install the Operator in a new namespace `redis-cluster-operator`. 
+
+You can also [install the operator in a custom namespace](./docs/installing-in-a-custom-namespace.md).
 
 ### bundled namespaced
 
@@ -72,4 +74,3 @@ spec:
 ```
 
 Once applied, the Operator will create all the necessary nodes, and set up the cluster ready for use.
-
