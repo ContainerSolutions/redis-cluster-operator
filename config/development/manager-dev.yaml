@@ -1,20 +1,20 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: controller-manager
+  name: redis-cluster-operator
   labels:
-    control-plane: controller-manager
+    control-plane: redis-cluster-operator
 spec:
   selector:
     matchLabels:
-      control-plane: controller-manager
+      control-plane: redis-cluster-operator
   replicas: 1
   template:
     metadata:
       labels:
-        control-plane: controller-manager
+        control-plane: redis-cluster-operator
     spec:
       containers:
         - image: chriscmsoft/golang-dev-pod:0.0.2
           name: golang-dev
-      serviceAccountName: controller-manager
+      serviceAccountName: redis-cluster-operator

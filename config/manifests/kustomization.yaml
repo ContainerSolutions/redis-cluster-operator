@@ -14,7 +14,7 @@ resources:
 #    group: apps
 #    version: v1
 #    kind: Deployment
-#    name: controller-manager
+#    name: redis-cluster-operator
 #    namespace: default
 #  patch: |-
 #    # Remove the manager container's "cert" volumeMount, since OLM will create and mount a set of certs.
