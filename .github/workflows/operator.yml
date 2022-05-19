@@ -78,8 +78,16 @@ jobs:
           VERSION=$(echo ${GITHUB_REF#refs/*/} | tr -d v)
           echo ::set-output name=version::${VERSION}
 
-      - name: Check output
-        if: ${{ github.event_name == 'release' }}
+      - name: Generate Bundle
         run: |
-          echo ${{ steps.getVersion.outputs.version }}
-          echo ${{ steps.meta.outputs.tags }}
+          pushd config/default
+          kustomize edit set image docker.io/containersol/redis-cluster-operator:${{ steps.getVersion.outputs.version }}
+          kustomize edit set image containersol/redis-cluster-operator:${{ steps.getVersion.outputs.version }}
+          popd
+          kustomize build config/default/ > bundle.yml
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: bundle.yml
