@@ -245,6 +245,14 @@ install-dev: generate manifests ## Install development components
 	echo "## Installing dev pod ..."
 	$(KUSTOMIZE) build config/development | kubectl apply -f -
 
+.PHONY: uninstall-dev
+uninstall-dev: generate manifests ## Uninstall development components
+	echo "## Uninstalling dev pod ..."
+	$(KUSTOMIZE) build config/development | kubectl delete -f -
+	echo "## Uninstalling manifests ..."
+	$(KUSTOMIZE) build config/crd | kubectl delete -f -
+	$(KUSTOMIZE) build config/rbac | kubectl delete -f -
+
 .PHONY: upload-dev
 upload-dev:  ## Upload application into development pod
 	./bin/krsync -av --exclude .idea --exclude .git --exclude bin --exclude config --progress --stats ./ $(DEV_POD):/workspace
