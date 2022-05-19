@@ -60,13 +60,15 @@ jobs:
             type=semver,pattern={{major}}
 
       - name: Build and push
-        uses: docker/build-push-action@v32
+        uses: docker/build-push-action@v3
         with:
           context: .
           platforms: linux/amd64,linux/arm64
 #          push: ${{ github.event_name == 'release' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=registry,ref=docker.io/containersol/redis-cluster-operator:latest
+          cache-to: type=inline
 
       - name: Check Tags
         run: echo ${{ steps.meta.outputs.tags }}
