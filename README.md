@@ -47,12 +47,12 @@ You can also [install the operator in a custom namespace](./docs/installing-in-a
 
 ### bundled namespaced
 
-The operator currently works in cluster-wide mode, but namespaced mode will be supported in future.
+The operator currently works in cluster-wide mode, but the Operator will support namespaced mode in the future.
 
 We know it's quite important for redundancy, reducing single-point of failures, 
 as well as tenanted models, or excluding namespaces from the operator.
 
-Namespaced mode will be supported in the future.
+The Operator will support Namespaced mode in the future.
 
 ### OLM bundle
 
