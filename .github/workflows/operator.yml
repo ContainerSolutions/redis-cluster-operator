@@ -71,5 +71,15 @@ jobs:
           cache-from: type=registry,ref=docker.io/containersol/redis-cluster-operator:latest
           cache-to: type=inline
 
-      - name: Check Tags
-        run: echo ${{ steps.meta.outputs.tags }}
+      - name: Get Version
+        if: ${{ github.event_name == 'release' }}
+        id: getVersion
+        run: |
+          VERSION=$(echo ${GITHUB_REF#refs/*/} | tr -d v)
+          echo ::set-output name=version::${VERSION}
+
+      - name: Check output
+        if: ${{ github.event_name == 'release' }}
+        run: |
+          echo ${{ steps.getVersion.outputs.version }}
+          echo ${{ steps.meta.outputs.tags }}
