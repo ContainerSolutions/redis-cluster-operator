@@ -15,6 +15,7 @@ when running them with this Operator, and ready-made load tests to test your Red
   * [Bundled Namespaced](#bundled-namespaced)
   * [OLM bundle](#olm-bundle)
 * [Creating your first Redis Cluster](#creating-your-first-redis-cluster)
+* [Contributing](./CONTRIBUTING.md)
 
 ## Features this operator supports
 - [ ] Cluster Creation and Management

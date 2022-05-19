@@ -42,4 +42,8 @@ All PRs have to be reviewed and signed off by another developer before being mer
 will likely ask for some changes to the code - please don't be alarmed or upset at this; Most PRs will need tweaks 
 and is a normal part of the process. It's not personal. We really do appreciate your contribution.
 
+## Development process
+
+See how to develop effectively on the Operator in the [Development Guide](./DEVELOPMENT.md).
+
 ## Thanks again for considering a contribution !
