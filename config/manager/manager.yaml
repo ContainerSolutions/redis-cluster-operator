@@ -8,7 +8,7 @@ metadata:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: redis-cluster-operator
+  name: manager
   namespace: default
   labels:
     control-plane: redis-cluster-operator
@@ -56,5 +56,5 @@ spec:
           requests:
             cpu: 10m
             memory: 64Mi
-      serviceAccountName: redis-cluster-operator
+      serviceAccountName: manager
       terminationGracePeriodSeconds: 10
