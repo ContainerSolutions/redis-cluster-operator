@@ -237,10 +237,19 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			if err != nil {
 				return r.RequeueError(ctx, "Could not meet all nodes together", err)
 			}
+			// We'll wait for 10 seconds to ensure the meet is propagated
+			time.Sleep(time.Second * 5)
 		}
 		// endregion
 
-		// region assign slots
+		// region Ensure Cluster Replication Ratio
+		err = clusterNodes.EnsureClusterReplicationRatio(ctx, redisCluster)
+		if err != nil {
+			return r.RequeueError(ctx, "Failed to ensure cluster ratio for cluster", err)
+		}
+		// endregion
+
+		// region Assign Slots
 		logger.Info("Assigning missing slots")
 		slotsAssignments := clusterNodes.CalculateSlotAssignment()
 		for node, slots := range slotsAssignments {

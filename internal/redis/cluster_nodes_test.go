@@ -2,8 +2,10 @@ package redis
 
 import (
 	"context"
+	"github.com/containersolutions/redis-cluster-operator/api/v1alpha1"
 	"github.com/go-redis/redis/v8"
 	"github.com/go-redis/redismock/v8"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"reflect"
 	"testing"
 )
@@ -153,5 +155,207 @@ func TestCalculateSlotAssignment(t *testing.T) {
 	if !reflect.DeepEqual(gotSlots, [][]int32{{8181, 8182, 8183, 8184, 8185, 8186, 8187, 8188, 8189, 8190, 8191}, {8192, 8193, 8194, 8195, 8196, 8197, 8198, 8199, 8200, 8201}}) &&
 		!reflect.DeepEqual(gotSlots, [][]int32{{8192, 8193, 8194, 8195, 8196, 8197, 8198, 8199, 8200, 8201}, {8181, 8182, 8183, 8184, 8185, 8186, 8187, 8188, 8189, 8190, 8191}}) {
 		t.Fatalf("Slot Assignment Calculation did not return correct slot assignments. Expected %v Got %v", [][]int32{{8192, 8193, 8194, 8195, 8196, 8197, 8198, 8199, 8200, 8201}, {8181, 8182, 8183, 8184, 8185, 8186, 8187, 8188, 8189, 8190, 8191}}, gotSlots)
+	}
+}
+
+func TestClusterNodes_GetMasters(t *testing.T) {
+	var nodes []*Node
+	for i := 0; i <= 1; i++ {
+		node, err := NewNode(context.TODO(), &redis.Options{
+			Addr: "10.20.30.40:6379",
+		}, func(opt *redis.Options) *redis.Client {
+			client, mock := redismock.NewClientMock()
+			if i == 0 {
+				mock.ExpectClusterNodes().SetVal(`5dbeafc760e4ec355f007b2ce10c690a56306dc8 10.244.0.225:6379@16379 myself,master - 0 1653476460000 9 connected
+85613000e76a00c2da80e9eae0f2fed6bc857605 10.244.0.240:6379@16379 slave 5dbeafc760e4ec355f007b2ce10c690a56306dc8 0 1653476461000 9 connected
+`)
+			} else {
+				mock.ExpectClusterNodes().SetVal(`5dbeafc760e4ec355f007b2ce10c690a56306dc8 10.244.0.225:6379@16379 master - 0 1653476460000 9 connected
+85613000e76a00c2da80e9eae0f2fed6bc857605 10.244.0.240:6379@16379 myself,slave 5dbeafc760e4ec355f007b2ce10c690a56306dc8 0 1653476461000 9 connected
+`)
+			}
+			return client
+		})
+		if err != nil {
+			t.Fatalf("Got error while creating nodes. %v", err)
+		}
+		nodes = append(nodes, node)
+	}
+
+	clusterNodes := ClusterNodes{
+		Nodes: nodes,
+	}
+	masters := clusterNodes.GetMasters()
+	if len(masters) != 1 {
+		t.Fatalf("Incorrect number of masters returned")
+	}
+	if masters[0].NodeAttributes.ID != "5dbeafc760e4ec355f007b2ce10c690a56306dc8" {
+		t.Fatalf("Incorrect master list returned")
+	}
+}
+
+func TestClusterNodes_GetReplicas(t *testing.T) {
+	var nodes []*Node
+	for i := 0; i <= 1; i++ {
+		node, err := NewNode(context.TODO(), &redis.Options{
+			Addr: "10.20.30.40:6379",
+		}, func(opt *redis.Options) *redis.Client {
+			client, mock := redismock.NewClientMock()
+			if i == 0 {
+				mock.ExpectClusterNodes().SetVal(`5dbeafc760e4ec355f007b2ce10c690a56306dc8 10.244.0.225:6379@16379 myself,master - 0 1653476460000 9 connected
+85613000e76a00c2da80e9eae0f2fed6bc857605 10.244.0.240:6379@16379 slave 5dbeafc760e4ec355f007b2ce10c690a56306dc8 0 1653476461000 9 connected
+`)
+			} else {
+				mock.ExpectClusterNodes().SetVal(`5dbeafc760e4ec355f007b2ce10c690a56306dc8 10.244.0.225:6379@16379 master - 0 1653476460000 9 connected
+85613000e76a00c2da80e9eae0f2fed6bc857605 10.244.0.240:6379@16379 myself,slave 5dbeafc760e4ec355f007b2ce10c690a56306dc8 0 1653476461000 9 connected
+`)
+			}
+			return client
+		})
+		if err != nil {
+			t.Fatalf("Got error while creating nodes. %v", err)
+		}
+		nodes = append(nodes, node)
+	}
+
+	clusterNodes := ClusterNodes{
+		Nodes: nodes,
+	}
+	masters := clusterNodes.GetReplicas()
+	if len(masters) != 1 {
+		t.Fatalf("Incorrect number of replicas returned")
+	}
+	if masters[0].NodeAttributes.ID != "85613000e76a00c2da80e9eae0f2fed6bc857605" {
+		t.Fatalf("Incorrect replica list returned")
+	}
+}
+
+func TestClusterNodes_EnsureClusterReplicationRatioIfTooManyMasters(t *testing.T) {
+	// We are testing here that a cluster is replicated in the way we specified.
+	node1, err := NewNode(context.TODO(), &redis.Options{
+		Addr: "10.20.30.40:6379",
+	}, func(opt *redis.Options) *redis.Client {
+		client, mock := redismock.NewClientMock()
+		mock.ExpectClusterNodes().SetVal(`9fd8800b31d569538917c0aaeaa5588e2f9c6edf 10.20.30.40:6379@16379 myself,master - 0 1652373716000 0 connected
+9fd8800b31d569538917c0aaeaa5588e2f9c6edg 10.20.30.41:6379@16379 master - 0 1652373716000 0 connected
+`)
+		return client
+	})
+	if err != nil {
+		t.Fatalf("received error while trying to create node %v", err)
+	}
+
+	replicaClient, replicaMock := redismock.NewClientMock()
+	replicaMock.ExpectClusterNodes().SetVal(`9fd8800b31d569538917c0aaeaa5588e2f9c6edf 10.20.30.40:6379@16379 master - 0 1652373716000 0 connected
+9fd8800b31d569538917c0aaeaa5588e2f9c6edg 10.20.30.41:6379@16379 myself,master - 0 1652373716000 0 connected
+`)
+	replicaMock.ExpectClusterReplicate("9fd8800b31d569538917c0aaeaa5588e2f9c6edf").SetVal("OK")
+
+	node2, err := NewNode(context.TODO(), &redis.Options{
+		Addr: "10.20.30.41:6379",
+	}, func(opt *redis.Options) *redis.Client {
+		return replicaClient
+	})
+	if err != nil {
+		t.Fatalf("received error while trying to create node %v", err)
+	}
+
+	clusterNodes := ClusterNodes{
+		Nodes: []*Node{
+			node1,
+			node2,
+		},
+	}
+	err = clusterNodes.EnsureClusterReplicationRatio(context.TODO(), &v1alpha1.RedisCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "redis-cluster",
+			Namespace: "default",
+		},
+		Spec: v1alpha1.RedisClusterSpec{
+			Masters:           1,
+			ReplicasPerMaster: 1,
+		},
+	})
+
+	if err != nil {
+		t.Fatalf("Did not expect error %v", err)
+	}
+
+	if err = replicaMock.ExpectationsWereMet(); err != nil {
+		t.Fatalf("Expected node to become replica, but didn't. Err: %v", err)
+	}
+}
+
+func TestClusterNodes_EnsureClusterReplicationRatioIfTooFewMasters(t *testing.T) {
+	var nodes []*Node
+	mocks := map[string]*redismock.ClientMock{}
+	for i := 0; i <= 3; i++ {
+		node, err := NewNode(context.TODO(), &redis.Options{
+			Addr: "10.20.30.40:6379",
+		}, func(opt *redis.Options) *redis.Client {
+			client, mock := redismock.NewClientMock()
+			switch i {
+			case 0:
+				mock.ExpectClusterNodes().SetVal(`5dbeafc760e4ec355f007b2ce10c690a56306dc8 10.20.30.40:6379@16379 myself,master - 0 1653479781000 16 connected
+4e70ffa7e012ecec890b25f52fbc3d2e8edd89ad 10.20.30.41:6379@16379 slave 5dbeafc760e4ec355f007b2ce10c690a56306dc8 0 1653479781745 16 connected
+0465e428668773fc3bbeb02150bbd4324e409fe0 10.20.30.42:6379@16379 slave 5dbeafc760e4ec355f007b2ce10c690a56306dc8 0 1653479781544 16 connected
+85613000e76a00c2da80e9eae0f2fed6bc857605 10.20.30.43:6379@16379 slave 5dbeafc760e4ec355f007b2ce10c690a56306dc8 0 1653479781000 16 connected
+`)
+				mocks["5dbeafc760e4ec355f007b2ce10c690a56306dc8"] = &mock
+			case 1:
+				// Early return for this node
+				mock.ExpectClusterNodes().SetVal(`5dbeafc760e4ec355f007b2ce10c690a56306dc8 10.20.30.40:6379@16379 master - 0 1653479781000 16 connected
+4e70ffa7e012ecec890b25f52fbc3d2e8edd89ad 10.20.30.41:6379@16379 myself,slave 5dbeafc760e4ec355f007b2ce10c690a56306dc8 0 1653479781745 16 connected
+0465e428668773fc3bbeb02150bbd4324e409fe0 10.20.30.42:6379@16379 slave 5dbeafc760e4ec355f007b2ce10c690a56306dc8 0 1653479781544 16 connected
+85613000e76a00c2da80e9eae0f2fed6bc857605 10.20.30.43:6379@16379 slave 5dbeafc760e4ec355f007b2ce10c690a56306dc8 0 1653479781000 16 connected
+`)
+				mock.ExpectClusterResetSoft().SetVal("OK")
+				mocks["4e70ffa7e012ecec890b25f52fbc3d2e8edd89ad"] = &mock
+			case 2:
+				mock.ExpectClusterNodes().SetVal(`5dbeafc760e4ec355f007b2ce10c690a56306dc8 10.20.30.40:6379@16379 master - 0 1653479781000 16 connected
+4e70ffa7e012ecec890b25f52fbc3d2e8edd89ad 10.20.30.41:6379@16379 slave 5dbeafc760e4ec355f007b2ce10c690a56306dc8 0 1653479781745 16 connected
+0465e428668773fc3bbeb02150bbd4324e409fe0 10.20.30.42:6379@16379 myself,slave 5dbeafc760e4ec355f007b2ce10c690a56306dc8 0 1653479781544 16 connected
+85613000e76a00c2da80e9eae0f2fed6bc857605 10.20.30.43:6379@16379 slave 5dbeafc760e4ec355f007b2ce10c690a56306dc8 0 1653479781000 16 connected
+`)
+				mocks["0465e428668773fc3bbeb02150bbd4324e409fe0"] = &mock
+			case 3:
+				mock.ExpectClusterNodes().SetVal(`5dbeafc760e4ec355f007b2ce10c690a56306dc8 10.20.30.40:6379@16379 master - 0 1653479781000 16 connected
+4e70ffa7e012ecec890b25f52fbc3d2e8edd89ad 10.20.30.41:6379@16379 slave 5dbeafc760e4ec355f007b2ce10c690a56306dc8 0 1653479781745 16 connected
+0465e428668773fc3bbeb02150bbd4324e409fe0 10.20.30.42:6379@16379 slave 5dbeafc760e4ec355f007b2ce10c690a56306dc8 0 1653479781544 16 connected
+85613000e76a00c2da80e9eae0f2fed6bc857605 10.20.30.43:6379@16379 myself,slave 5dbeafc760e4ec355f007b2ce10c690a56306dc8 0 1653479781000 16 connected
+`)
+				mocks["85613000e76a00c2da80e9eae0f2fed6bc857605"] = &mock
+			}
+			return client
+		})
+		if err != nil {
+			t.Fatalf("Got error whil trying to create node. %v", err)
+		}
+		nodes = append(nodes, node)
+	}
+
+	clusterNodes := ClusterNodes{
+		Nodes: nodes,
+	}
+	err := clusterNodes.EnsureClusterReplicationRatio(context.TODO(), &v1alpha1.RedisCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "redis-cluster",
+			Namespace: "default",
+		},
+		Spec: v1alpha1.RedisClusterSpec{
+			Masters:           2,
+			ReplicasPerMaster: 1,
+		},
+	})
+
+	if err != nil {
+		t.Fatalf("Did not expect error %v", err)
+	}
+
+	for node, mock := range mocks {
+		realMock := *mock
+		if err = realMock.ExpectationsWereMet(); err != nil {
+			t.Fatalf("Expected node to become replica, but didn't. Node %s. Err: %v", node, err)
+		}
 	}
 }

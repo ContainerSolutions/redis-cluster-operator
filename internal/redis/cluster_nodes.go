@@ -2,6 +2,8 @@ package redis
 
 import (
 	"context"
+	"github.com/containersolutions/redis-cluster-operator/api/v1alpha1"
+	"math"
 	"sort"
 )
 
@@ -76,4 +78,69 @@ func (c *ClusterNodes) CalculateSlotAssignment() map[*Node][]int32 {
 		}
 	}
 	return slotAssignment
+}
+
+func (c *ClusterNodes) GetMasters() []*Node {
+	var masters []*Node
+	for _, node := range c.Nodes {
+		if node.IsMaster() {
+			masters = append(masters, node)
+		}
+	}
+	return masters
+}
+
+func (c *ClusterNodes) GetReplicas() []*Node {
+	var replicas []*Node
+	for _, node := range c.Nodes {
+		if !node.IsMaster() {
+			replicas = append(replicas, node)
+		}
+	}
+	return replicas
+}
+
+func (c *ClusterNodes) EnsureClusterReplicationRatio(ctx context.Context, cluster *v1alpha1.RedisCluster) error {
+	masters := c.GetMasters()
+
+	if len(masters) == int(cluster.Spec.Masters) {
+		// There are the appropriate amount of masters and replicas
+		return nil
+	}
+
+	// If we have too many masters, we can failover the extra masters to replicate the original masters
+	if len(masters) > int(cluster.Spec.Masters) {
+		// todo select keepable masters as masters with most slots attached
+		var keepMasters []*Node
+		var removeMasters []*Node
+		// We have too many masters and need to fail over some
+		keepMasters = masters[:cluster.Spec.Masters]
+		removeMasters = masters[cluster.Spec.Masters:]
+
+		// todo we need to replicate the masters which have the least amount of replicas, rather than just the matching index
+		for k, removeMaster := range removeMasters {
+			selectedMaster := keepMasters[int(math.Mod(float64(k), float64(cluster.Spec.Masters)))]
+
+			// todo we need to make sure that there are no slots in the master before replicating it.
+			err := removeMaster.ClusterReplicate(ctx, selectedMaster.NodeAttributes.ID).Err()
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	if len(masters) < int(cluster.Spec.Masters) {
+		mastersNeeded := int(cluster.Spec.Masters) - len(masters)
+		replicas := c.GetReplicas()
+		replicaNeedsReset := replicas[:mastersNeeded]
+		for _, replica := range replicaNeedsReset {
+			err := replica.ClusterResetSoft(ctx).Err()
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
 }
