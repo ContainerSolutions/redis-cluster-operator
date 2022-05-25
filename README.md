@@ -18,8 +18,9 @@ when running them with this Operator, and ready-made load tests to test your Red
 * [Contributing](./CONTRIBUTING.md)
 
 ## Features this operator supports
-- [ ] Cluster Creation and Management
-- [ ] Support for replicated clusters (Master-Replica splits)
+- [x] Cluster Creation
+- [ ] Cluster Management
+- [x] Support for replicated clusters (Master-Replica splits)
 - [ ] 0 Downtime scaling
 - [ ] 0 Downtime upgrades
 - [ ] Persistent clusters (Supported through Kubernetes PVC management)
