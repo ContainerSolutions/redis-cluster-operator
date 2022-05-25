@@ -51,6 +51,7 @@ func createStatefulsetSpec(cluster *v1alpha1.RedisCluster) *v1.StatefulSet {
 			Selector: &metav1.LabelSelector{
 				MatchLabels: GetPodLabels(cluster),
 			},
+			PodManagementPolicy: v1.ParallelPodManagement,
 			Template: v12.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: GetPodLabels(cluster),
