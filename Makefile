@@ -233,7 +233,7 @@ catalog-push: ## Push a catalog image.
 	$(MAKE) docker-push IMG=$(CATALOG_IMG)
 
 ##@ Development
-DEV_POD := $(shell kubectl get pods -l control-plane=controller-manager -o json | jq -r .items[0].metadata.name)
+DEV_POD := $(shell kubectl get pods -l control-plane=redis-cluster-operator -o json | jq -r .items[0].metadata.name)
 .PHONY: all-dev
 all-dev: install-dev upload-dev run-dev  ## Install and run development mode
 
