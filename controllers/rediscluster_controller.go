@@ -249,6 +249,11 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 		// endregion
 
+		err = clusterNodes.ReloadNodes(ctx)
+		if err != nil {
+			return r.RequeueError(ctx, "Failed to reload node info for cluster", err)
+		}
+
 		// region Assign Slots
 		logger.Info("Assigning missing slots")
 		slotsAssignments := clusterNodes.CalculateSlotAssignment()

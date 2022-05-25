@@ -100,6 +100,18 @@ func NewNode(ctx context.Context, opt *redis.Options, clientBuilder func(opt *re
 	return node, nil
 }
 
+func (n *Node) ReloadNodeInfo(ctx context.Context) error {
+	oldAttributes := n.NodeAttributes
+	attributes, err := n.GetSelfAttributes(ctx)
+	if err != nil {
+		return err
+	}
+	n.NodeAttributes = attributes
+	n.NodeAttributes.host = oldAttributes.host
+	n.NodeAttributes.port = oldAttributes.port
+	return nil
+}
+
 func (n *Node) GetSelfAttributes(ctx context.Context) (NodeAttributes, error) {
 	nodes, err := n.ClusterNodes(ctx).Result()
 	if err != nil {

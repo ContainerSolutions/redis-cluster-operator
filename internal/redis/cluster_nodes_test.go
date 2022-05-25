@@ -111,33 +111,56 @@ func TestGetMissingSlots(t *testing.T) {
 
 // endregion
 
-func TestCalculateSlotAssignment(t *testing.T) {
-	node1, err := NewNode(context.TODO(), &redis.Options{
-		Addr: "10.20.30.40:6379",
-	}, func(opt *redis.Options) *redis.Client {
-		client, mock := redismock.NewClientMock()
-		mock.ExpectClusterNodes().SetVal(`9fd8800b31d569538917c0aaeaa5588e2f9c6edf 10.20.30.40:6379@16379 myself,master - 0 1652373716000 0 connected 8202-16383
-9fd8800b31d569538917c0aaeaa5588e2f9c6edg 10.20.30.41:6379@16379 master - 0 1652373716000 0 connected 0-8180 
+func TestCalculateSlotAssignmentWorksForMastersOnly(t *testing.T) {
+	var nodes []*Node
+	mocks := map[string]*redismock.ClientMock{}
+	for i := 0; i <= 3; i++ {
+		node, err := NewNode(context.TODO(), &redis.Options{
+			Addr: "10.20.30.40:6379",
+		}, func(opt *redis.Options) *redis.Client {
+			client, mock := redismock.NewClientMock()
+			switch i {
+			case 0:
+				mock.ExpectClusterNodes().SetVal(`5dbeafc760e4ec355f007b2ce10c690a56306dc8 10.20.30.40:6379@16379 myself,master - 0 1653479781000 16 connected 8202-16383
+4e70ffa7e012ecec890b25f52fbc3d2e8edd89ad 10.20.30.41:6379@16379 master - 0 1653479781000 16 connected 0-8180 
+0465e428668773fc3bbeb02150bbd4324e409fe0 10.20.30.42:6379@16379 slave 5dbeafc760e4ec355f007b2ce10c690a56306dc8 0 1653479781544 16 connected
+85613000e76a00c2da80e9eae0f2fed6bc857605 10.20.30.43:6379@16379 slave 4e70ffa7e012ecec890b25f52fbc3d2e8edd89ad 0 1653479781000 16 connected
 `)
-		return client
-	})
-	if err != nil {
-		t.Fatalf("received error while trying to create node %v", err)
-	}
-	node2, err := NewNode(context.TODO(), &redis.Options{
-		Addr: "10.20.30.41:6379",
-	}, func(opt *redis.Options) *redis.Client {
-		client, mock := redismock.NewClientMock()
-		mock.ExpectClusterNodes().SetVal(`9fd8800b31d569538917c0aaeaa5588e2f9c6edf 10.20.30.40:6379@16379 master - 0 1652373716000 0 connected 8202-16383
-9fd8800b31d569538917c0aaeaa5588e2f9c6edg 10.20.30.41:6379@16379 myself,master - 0 1652373716000 0 connected 0-8180 
+				mocks["5dbeafc760e4ec355f007b2ce10c690a56306dc8"] = &mock
+			case 1:
+				// Early return for this node
+				mock.ExpectClusterNodes().SetVal(`5dbeafc760e4ec355f007b2ce10c690a56306dc8 10.20.30.40:6379@16379 master - 0 1653479781000 16 connected 8202-16383
+4e70ffa7e012ecec890b25f52fbc3d2e8edd89ad 10.20.30.41:6379@16379 myself,master - 0 1653479781000 16 connected 0-8180 
+0465e428668773fc3bbeb02150bbd4324e409fe0 10.20.30.42:6379@16379 slave 5dbeafc760e4ec355f007b2ce10c690a56306dc8 0 1653479781544 16 connected
+85613000e76a00c2da80e9eae0f2fed6bc857605 10.20.30.43:6379@16379 slave 4e70ffa7e012ecec890b25f52fbc3d2e8edd89ad 0 1653479781000 16 connected
 `)
-		return client
-	})
-	if err != nil {
-		t.Fatalf("received error while trying to create node %v", err)
+				mock.ExpectClusterResetSoft().SetVal("OK")
+				mocks["4e70ffa7e012ecec890b25f52fbc3d2e8edd89ad"] = &mock
+			case 2:
+				mock.ExpectClusterNodes().SetVal(`5dbeafc760e4ec355f007b2ce10c690a56306dc8 10.20.30.40:6379@16379 master - 0 1653479781000 16 connected 8202-16383
+4e70ffa7e012ecec890b25f52fbc3d2e8edd89ad 10.20.30.41:6379@16379 master - 0 1653479781000 16 connected 0-8180 
+0465e428668773fc3bbeb02150bbd4324e409fe0 10.20.30.42:6379@16379 myself,slave 5dbeafc760e4ec355f007b2ce10c690a56306dc8 0 1653479781544 16 connected
+85613000e76a00c2da80e9eae0f2fed6bc857605 10.20.30.43:6379@16379 slave 4e70ffa7e012ecec890b25f52fbc3d2e8edd89ad 0 1653479781000 16 connected
+`)
+				mocks["0465e428668773fc3bbeb02150bbd4324e409fe0"] = &mock
+			case 3:
+				mock.ExpectClusterNodes().SetVal(`5dbeafc760e4ec355f007b2ce10c690a56306dc8 10.20.30.40:6379@16379 master - 0 1653479781000 16 connected 8202-16383
+4e70ffa7e012ecec890b25f52fbc3d2e8edd89ad 10.20.30.41:6379@16379 master - 0 1653479781000 16 connected 0-8180 
+0465e428668773fc3bbeb02150bbd4324e409fe0 10.20.30.42:6379@16379 slave 5dbeafc760e4ec355f007b2ce10c690a56306dc8 0 1653479781544 16 connected
+85613000e76a00c2da80e9eae0f2fed6bc857605 10.20.30.43:6379@16379 myself,slave 4e70ffa7e012ecec890b25f52fbc3d2e8edd89ad 0 1653479781000 16 connected
+`)
+				mocks["85613000e76a00c2da80e9eae0f2fed6bc857605"] = &mock
+			}
+			return client
+		})
+		if err != nil {
+			t.Fatalf("Got error whil trying to create node. %v", err)
+		}
+		nodes = append(nodes, node)
 	}
+
 	clusterNodes := ClusterNodes{
-		Nodes: []*Node{node1, node2},
+		Nodes: nodes,
 	}
 	got := clusterNodes.CalculateSlotAssignment()
 
@@ -147,9 +170,9 @@ func TestCalculateSlotAssignment(t *testing.T) {
 		gotNodeIds = append(gotNodeIds, node.NodeAttributes.ID)
 		gotSlots = append(gotSlots, slots)
 	}
-	if !reflect.DeepEqual(gotNodeIds, []string{"9fd8800b31d569538917c0aaeaa5588e2f9c6edg", "9fd8800b31d569538917c0aaeaa5588e2f9c6edf"}) &&
-		!reflect.DeepEqual(gotNodeIds, []string{"9fd8800b31d569538917c0aaeaa5588e2f9c6edf", "9fd8800b31d569538917c0aaeaa5588e2f9c6edg"}) {
-		t.Fatalf("Slot Assignment Calculation did not return correct nodes. Expected %v Got %v", []string{"9fd8800b31d569538917c0aaeaa5588e2f9c6edf", "9fd8800b31d569538917c0aaeaa5588e2f9c6edg"}, gotNodeIds)
+	if !reflect.DeepEqual(gotNodeIds, []string{"5dbeafc760e4ec355f007b2ce10c690a56306dc8", "4e70ffa7e012ecec890b25f52fbc3d2e8edd89ad"}) &&
+		!reflect.DeepEqual(gotNodeIds, []string{"4e70ffa7e012ecec890b25f52fbc3d2e8edd89ad", "5dbeafc760e4ec355f007b2ce10c690a56306dc8"}) {
+		t.Fatalf("Slot Assignment Calculation did not return correct nodes. Expected %v Got %v", []string{"5dbeafc760e4ec355f007b2ce10c690a56306dc8", "4e70ffa7e012ecec890b25f52fbc3d2e8edd89ad"}, gotNodeIds)
 	}
 
 	if !reflect.DeepEqual(gotSlots, [][]int32{{8181, 8182, 8183, 8184, 8185, 8186, 8187, 8188, 8189, 8190, 8191}, {8192, 8193, 8194, 8195, 8196, 8197, 8198, 8199, 8200, 8201}}) &&

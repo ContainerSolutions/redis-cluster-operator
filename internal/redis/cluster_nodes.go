@@ -11,6 +11,16 @@ type ClusterNodes struct {
 	Nodes []*Node
 }
 
+func (c *ClusterNodes) ReloadNodes(ctx context.Context) error {
+	for _, node := range c.Nodes {
+		err := node.ReloadNodeInfo(ctx)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (c *ClusterNodes) ClusterMeet(ctx context.Context) error {
 	for _, node := range c.Nodes {
 		for _, joinNode := range c.Nodes {
@@ -58,9 +68,9 @@ func (c *ClusterNodes) CalculateSlotAssignment() map[*Node][]int32 {
 	// We add one for the remainder, as 16834 does not go even into an uneven amount of nodes.
 	// By adding one to each node, we don't need a check after to see whether there are unassigned slots left,
 	// as assignable slots will be less than slotsNeededPerNode * len(nodes).
-	slotsNeededPerNode := int(TotalRedisSlots/len(c.Nodes)) + 1
+	slotsNeededPerNode := int(TotalRedisSlots/len(c.GetMasters())) + 1
 	slotsStillToAssign := c.GetMissingSlots()
-	for _, node := range c.Nodes {
+	for _, node := range c.GetMasters() {
 		if len(node.NodeAttributes.slots) < slotsNeededPerNode {
 			// This node needs some slots to fill it's quota of slots.
 			// We can cut some slots from the allocatable slots, if there are enough
