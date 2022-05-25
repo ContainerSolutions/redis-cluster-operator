@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: redis-cluster-operator
+  name: manager
   labels:
     control-plane: redis-cluster-operator
 spec:
@@ -17,4 +17,4 @@ spec:
       containers:
         - image: chriscmsoft/golang-dev-pod:0.0.2
           name: golang-dev
-      serviceAccountName: redis-cluster-operator
+      serviceAccountName: redis-cluster-operator-manager

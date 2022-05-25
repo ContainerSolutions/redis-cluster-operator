@@ -1,2 +1,10 @@
+namespace: default
+
+namePrefix: redis-cluster-operator-
+
 resources:
 - manager-dev.yaml
+
+bases:
+- ../crd
+- ../rbac

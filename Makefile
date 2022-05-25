@@ -239,10 +239,7 @@ all-dev: install-dev upload-dev run-dev  ## Install and run development mode
 
 .PHONY: install-dev
 install-dev: generate manifests ## Install development components
-	echo "## Installing manifests ..."
-	$(KUSTOMIZE) build config/crd | kubectl apply -f -
-	$(KUSTOMIZE) build config/rbac | kubectl apply -f -
-	echo "## Installing dev pod ..."
+	echo "## Installing dev components ..."
 	$(KUSTOMIZE) build config/development | kubectl apply -f -
 
 .PHONY: uninstall-dev
