@@ -15,6 +15,7 @@ when running them with this Operator, and ready-made load tests to test your Red
   * [Bundled Namespaced](#bundled-namespaced)
   * [OLM bundle](#olm-bundle)
 * [Creating your first Redis Cluster](#creating-your-first-redis-cluster)
+* [Documentation](./docs/home.md)
 * [Contributing](./CONTRIBUTING.md)
 
 ## Features this operator supports
@@ -76,3 +77,5 @@ spec:
 ```
 
 Once applied, the Operator will create all the necessary nodes, and set up the cluster ready for use.
+
+Remember to check out the [documentation](./docs/home.md) page for more information.
