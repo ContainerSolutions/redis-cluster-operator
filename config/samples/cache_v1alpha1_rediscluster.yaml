@@ -5,3 +5,6 @@ metadata:
 spec:
   masters: 3
   replicasPerMaster: 1
+  config: |
+    maxmemory 200mb
+    maxmemory-policy allkeys-lru
