@@ -244,11 +244,8 @@ install-dev: generate manifests ## Install development components
 
 .PHONY: uninstall-dev
 uninstall-dev: generate manifests ## Uninstall development components
-	echo "## Uninstalling dev pod ..."
+	echo "## Uninstalling dev components ..."
 	$(KUSTOMIZE) build config/development | kubectl delete -f -
-	echo "## Uninstalling manifests ..."
-	$(KUSTOMIZE) build config/crd | kubectl delete -f -
-	$(KUSTOMIZE) build config/rbac | kubectl delete -f -
 
 .PHONY: upload-dev
 upload-dev:  ## Upload application into development pod
