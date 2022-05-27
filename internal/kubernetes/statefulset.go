@@ -89,6 +89,32 @@ func createStatefulsetSpec(cluster *v1alpha1.RedisCluster) *v1.StatefulSet {
 									ContainerPort: 16379,
 								},
 							},
+							LivenessProbe: &v12.Probe{
+								ProbeHandler: v12.ProbeHandler{
+									Exec: &v12.ExecAction{
+										Command: []string{
+											"redis-cli",
+											"ping",
+										},
+									},
+								},
+								InitialDelaySeconds: 10,
+								TimeoutSeconds:      5,
+								PeriodSeconds:       3,
+							},
+							ReadinessProbe: &v12.Probe{
+								ProbeHandler: v12.ProbeHandler{
+									Exec: &v12.ExecAction{
+										Command: []string{
+											"redis-cli",
+											"ping",
+										},
+									},
+								},
+								InitialDelaySeconds: 10,
+								TimeoutSeconds:      5,
+								PeriodSeconds:       3,
+							},
 							VolumeMounts: []v12.VolumeMount{
 								{
 									Name:      "redis-cluster-config",
