@@ -2,6 +2,8 @@ package redis
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"github.com/containersolutions/redis-cluster-operator/api/v1alpha1"
 	"math"
 	"sort"
@@ -19,6 +21,44 @@ func (c *ClusterNodes) ReloadNodes(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+func (c *ClusterNodes) GetCommandingNode(ctx context.Context) (*Node, error) {
+	for _, node := range c.Nodes {
+		if node.IsMaster() {
+			err := node.Ping(ctx).Err()
+			return node, err
+		}
+	}
+	return nil, errors.New("no commanding nodes found")
+}
+
+// GetFailingNodes returns a list of all the nodes marked as failing in the cluster.
+// Any nodes marked as failing in `cluster nodes` command will be returned
+// We will most likely not be able to connect to these nodes as they would be restarted pods
+func (c *ClusterNodes) GetFailingNodes(ctx context.Context) ([]*Node, error) {
+	node, err := c.GetCommandingNode(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println(node.NodeAttributes.ID)
+
+	friends, err := node.GetFriends(ctx)
+
+	if err != nil {
+		return nil, err
+	}
+
+	var result []*Node
+
+	for _, friend := range friends {
+		if friend.NodeAttributes.HasFlag("fail") {
+			result = append(result, friend)
+		}
+	}
+
+	return result, nil
 }
 
 func (c *ClusterNodes) ClusterMeet(ctx context.Context) error {

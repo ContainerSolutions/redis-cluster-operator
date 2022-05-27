@@ -382,3 +382,45 @@ func TestClusterNodes_EnsureClusterReplicationRatioIfTooFewMasters(t *testing.T)
 		}
 	}
 }
+
+func TestClusterNodes_GetFailingNodes(t *testing.T) {
+	var nodes []*Node
+	mocks := map[string]*redismock.ClientMock{}
+	for i := 0; i <= 0; i++ {
+		node, err := NewNode(context.TODO(), &redis.Options{
+			Addr: "10.20.30.40:6379",
+		}, func(opt *redis.Options) *redis.Client {
+			client, mock := redismock.NewClientMock()
+			switch i {
+			case 0:
+				mock.MatchExpectationsInOrder(false)
+				mock.ExpectPing().SetVal("PONG")
+				clusterNodeString := `c9d83f035342c51c8d23b32339f37656becd14c9 10.20.30.40:6379@16379 myself,master - 0 1653647426553 3 connected 0-5461
+1a4c602fc868c69b74fc13f9b0410a20241c7197 10.20.30.41:6379@16379 master,fail - 1653646405584 1653646403000 4 connected
+`
+				// Cluster nodes will be called twice. Once for creating the nodes, the next for getting friends.
+				mock.ExpectClusterNodes().SetVal(clusterNodeString)
+				mock.ExpectClusterNodes().SetVal(clusterNodeString)
+				mocks["c9d83f035342c51c8d23b32339f37656becd14c9"] = &mock
+			}
+			return client
+		})
+		if err != nil {
+			t.Fatalf("Got error whil trying to create node. %v", err)
+		}
+		nodes = append(nodes, node)
+	}
+	clusterNodes := ClusterNodes{
+		Nodes: nodes,
+	}
+	failingNodes, err := clusterNodes.GetFailingNodes(context.TODO())
+	if err != nil {
+		t.Fatalf("Failed to get failing nodes. %v", err)
+	}
+	if len(failingNodes) != 1 {
+		t.Fatalf("incorrect amount of failing nodes returned")
+	}
+	if failingNodes[0].NodeAttributes.ID != "1a4c602fc868c69b74fc13f9b0410a20241c7197" {
+		t.Fatalf("Incorrect node returned for failing nodes. Expected 1a4c602fc868c69b74fc13f9b0410a20241c7197. Got %s", failingNodes[0].NodeAttributes.ID)
+	}
+}
