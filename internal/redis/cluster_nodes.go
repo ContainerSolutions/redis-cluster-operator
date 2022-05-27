@@ -170,6 +170,13 @@ func (c *ClusterNodes) EnsureClusterReplicationRatio(ctx context.Context, cluste
 		// todo select keepable masters as masters with most slots attached
 		var keepMasters []*Node
 		var removeMasters []*Node
+
+		// We want to sort the masters by the amount of slots they have.
+		// That way when we select removable masters, they are most likely to be empty from slots
+		sort.Slice(masters, func(i, j int) bool {
+			return len(masters[i].NodeAttributes.slots) > len(masters[j].NodeAttributes.slots)
+		})
+
 		// We have too many masters and need to fail over some
 		keepMasters = masters[:cluster.Spec.Masters]
 		removeMasters = masters[cluster.Spec.Masters:]
