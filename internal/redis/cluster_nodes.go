@@ -3,7 +3,6 @@ package redis
 import (
 	"context"
 	"errors"
-	"fmt"
 	"github.com/containersolutions/redis-cluster-operator/api/v1alpha1"
 	"math"
 	"sort"
@@ -41,8 +40,6 @@ func (c *ClusterNodes) GetFailingNodes(ctx context.Context) ([]*Node, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	fmt.Println(node.NodeAttributes.ID)
 
 	friends, err := node.GetFriends(ctx)
 
