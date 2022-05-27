@@ -32,6 +32,16 @@ func (c *ClusterNodes) GetCommandingNode(ctx context.Context) (*Node, error) {
 	return nil, errors.New("no commanding nodes found")
 }
 
+func (c *ClusterNodes) ForgetNode(ctx context.Context, forgetNode *Node) error {
+	for _, node := range c.Nodes {
+		err := node.ClusterForget(ctx, forgetNode.NodeAttributes.ID).Err()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // GetFailingNodes returns a list of all the nodes marked as failing in the cluster.
 // Any nodes marked as failing in `cluster nodes` command will be returned
 // We will most likely not be able to connect to these nodes as they would be restarted pods
