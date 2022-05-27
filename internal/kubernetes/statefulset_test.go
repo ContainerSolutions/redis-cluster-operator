@@ -218,3 +218,22 @@ func TestCreateStatefulset_MountsConfigMapAsVolumeCorrectly(t *testing.T) {
 		t.Fatalf("Configmap mounted on wrong directory in redis pod")
 	}
 }
+
+func TestCreateStatefulset_SetsLivenessAndReadinessProbes(t *testing.T) {
+	// Register operator types with the runtime scheme.
+	cluster := &cachev1alpha1.RedisCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "redis-cluster",
+			Namespace: "default",
+		},
+	}
+	statefulset := createStatefulsetSpec(cluster)
+
+	if statefulset.Spec.Template.Spec.Containers[0].ReadinessProbe == nil {
+		t.Fatalf("Readiness probe not set on the Redis statefulset")
+	}
+
+	if statefulset.Spec.Template.Spec.Containers[0].ReadinessProbe == nil {
+		t.Fatalf("Liveness probe not set on the Redis statefulset")
+	}
+}
