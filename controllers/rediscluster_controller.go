@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"github.com/containersolutions/redis-cluster-operator/internal/kubernetes"
 	redis_internal "github.com/containersolutions/redis-cluster-operator/internal/redis"
 	"github.com/containersolutions/redis-cluster-operator/internal/utils"
@@ -231,17 +232,16 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		// This can also be augmented by doing cluster meet for all ready nodes, and ignoring any none ready ones.
 		// If the amount of ready pods is equal to the amount of nodes needed, we probably have some additional nodes we need to remove.
 		// We can forget these additional nodes, as they are probably nodes which pods got killed.
-		if len(clusterNodes.Nodes) == int(redisCluster.NodesNeeded()) {
-			logger.Info("Meeting Redis nodes")
-			err = clusterNodes.ClusterMeet(ctx)
-			if err != nil {
-				return r.RequeueError(ctx, "Could not meet all nodes together", err)
-			}
-			// We'll wait for 10 seconds to ensure the meet is propagated
-			time.Sleep(time.Second * 5)
+		logger.Info("Meeting Redis nodes")
+		err = clusterNodes.ClusterMeet(ctx)
+		if err != nil {
+			return r.RequeueError(ctx, "Could not meet all nodes together", err)
 		}
+		// We'll wait for 10 seconds to ensure the meet is propagated
+		time.Sleep(time.Second * 5)
 		// endregion
 
+		logger.Info("Checking Cluster Master Replica Ratio")
 		// region Ensure Cluster Replication Ratio
 		err = clusterNodes.EnsureClusterReplicationRatio(ctx, redisCluster)
 		if err != nil {
@@ -255,7 +255,7 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		}
 
 		// region Assign Slots
-		logger.Info("Assigning missing slots")
+		logger.Info("Assigning Missing Slots")
 		slotsAssignments := clusterNodes.CalculateSlotAssignment()
 		for node, slots := range slotsAssignments {
 			if len(slots) == 0 {
@@ -271,6 +271,18 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			}
 		}
 		// endregion
+
+		logger.Info("Forgetting Failed Nodes No Longer Valid")
+		failingNodes, err := clusterNodes.GetFailingNodes(ctx)
+		if err != nil {
+			return r.RequeueError(ctx, "could not fetch failing nodes", err)
+		}
+		for _, node := range failingNodes {
+			err = clusterNodes.ForgetNode(ctx, node)
+			if err != nil {
+				return r.RequeueError(ctx, fmt.Sprintf("could not forget node %s", node.NodeAttributes.ID), err)
+			}
+		}
 	}
 
 	return ctrl.Result{
