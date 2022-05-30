@@ -17,6 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -39,6 +40,9 @@ type RedisClusterSpec struct {
 
 	// Config specifies the Redis config to be set in each redis node. The format matches the format of redis.conf, as a multiline yaml string
 	Config string `json:"config,omitempty"`
+
+	// PodSpec specifies the overrides or additions necessary for the redis pods. This allows you to override any pod settings necessary
+	PodSpec v1.PodSpec `json:"podSpec,omitempty"`
 }
 
 // RedisClusterStatus defines the observed state of RedisCluster
