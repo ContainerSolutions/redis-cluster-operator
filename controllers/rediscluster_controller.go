@@ -192,6 +192,26 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 	//endregion
 
+	if *statefulset.Spec.Replicas < redisCluster.NodesNeeded() {
+		// The statefulset has less replicas than are needed for the cluster.
+		// This means the user is trying to scale up the cluster, and we need to scale up the statefulset
+		// and let th reconciliation take care of stabilising the cluster.
+		logger.Info("Scaling up statefulset for Redis Cluster")
+		replicas := redisCluster.NodesNeeded()
+		statefulset.Spec.Replicas = &replicas
+		err = r.Client.Update(ctx, statefulset)
+		if err != nil {
+			return r.RequeueError(ctx, "Could not update statefulset replicas", err)
+		}
+		// We've successfully updated the replicas for the statefulset.
+		// Now we can wait for the pods to come up and then continue on the
+		// normal process for stabilising the Redis Cluster
+		logger.Info("Scaling up statefulset for Redis Cluster successful. Reconciling again in 5 seconds.")
+		return ctrl.Result{
+			RequeueAfter: 5,
+		}, nil
+	}
+
 	pods, err := kubernetes.FetchRedisPods(ctx, r.Client, redisCluster)
 	if err != nil {
 		return r.RequeueError(ctx, "Could not fetch pods for redis cluster", err)
