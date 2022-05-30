@@ -3,7 +3,6 @@ package utils
 import (
 	v1 "k8s.io/api/core/v1"
 	"sort"
-	"strings"
 	"testing"
 )
 
@@ -144,35 +143,57 @@ func TestMergeContainers(t *testing.T) {
 	})
 
 	// Assert that the redis container pieces are overridden
-	redisContainer := merged[1]
+	var redisContainer v1.Container
+	var metricsContainer v1.Container
+	for _, container := range merged {
+		if container.Name == "redis" {
+			redisContainer = container
+		}
+		if container.Name == "prometheus-metrics" {
+			metricsContainer = container
+		}
+	}
+
+	if metricsContainer.Image != "prometheus-redis:1.0.0" {
+		t.Fatalf("Metrics container not added correctly")
+	}
+
 	if redisContainer.Image != "redis:5" {
 		t.Fatalf("Redis image not correctly overriden")
 	}
 
-	redisPorts := redisContainer.Ports
-	sort.SliceStable(redisPorts, func(i, j int) bool {
-		return strings.ToLower(merged[i].Name) > strings.ToLower(merged[j].Name)
-	})
-	if redisPorts[1].ContainerPort != 7001 {
+	var redisPort v1.ContainerPort
+	var metricsPort v1.ContainerPort
+	for _, port := range redisContainer.Ports {
+		if port.Name == "redis" {
+			redisPort = port
+		}
+		if port.Name == "metrics" {
+			metricsPort = port
+		}
+	}
+	if redisPort.ContainerPort != 7001 {
 		t.Fatalf("Redis port not correctly overridden")
 	}
-	if redisPorts[0].ContainerPort != 8080 || redisPorts[0].Name != "metrics" {
+	if metricsPort.ContainerPort != 8080 {
 		t.Fatalf("Metrics port not correctly added")
 	}
 
-	redisVolumeMounts := redisContainer.VolumeMounts
-	sort.SliceStable(redisVolumeMounts, func(i, j int) bool {
-		return strings.ToLower(merged[i].Name) > strings.ToLower(merged[j].Name)
-	})
-	if redisVolumeMounts[0].Name != "redis-cluster-config-metrics" || redisVolumeMounts[0].MountPath != "/usr/local/etc/metrics" {
-		t.Fatalf("Metrics volume mount not correctly added")
-	}
-	if redisVolumeMounts[1].MountPath != "/usr/local/etc/foobar" {
-		t.Fatalf("Config volume mount not correctly overridden")
+	var redisVolumeMount v1.VolumeMount
+	var metricsVolumeMount v1.VolumeMount
+	for _, mount := range redisContainer.VolumeMounts {
+		if mount.Name == "redis-cluster-config" {
+			redisVolumeMount = mount
+		}
+		if mount.Name == "redis-cluster-config-metrics" {
+			metricsVolumeMount = mount
+		}
 	}
 
-	metricsContainer := merged[0]
-	if metricsContainer.Name != "prometheus-metrics" || metricsContainer.Image != "prometheus-redis:1.0.0" {
-		t.Fatalf("Metrics container not added correctly")
+	if redisVolumeMount.MountPath != "/usr/local/etc/foobar" {
+		t.Fatalf("Config volume mount not correctly overridden")
+	}
+	if metricsVolumeMount.MountPath != "/usr/local/etc/metrics" {
+		t.Fatalf("Metrics volume mount not correctly added")
 	}
 }
