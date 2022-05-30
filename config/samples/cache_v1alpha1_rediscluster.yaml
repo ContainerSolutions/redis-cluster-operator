@@ -8,3 +8,15 @@ spec:
   config: |
     maxmemory 200mb
     maxmemory-policy allkeys-lru
+  podSpec:
+    containers:
+      - name: redis
+        image: redis:5.0
+      # UNCOMMENT to add redis exporter for prometheus monitoring
+      # - name: redis-exporter
+      #   image: oliver006/redis_exporter:latest
+      #   ports:
+      #       - containerPort: 9121
+      #   env:
+      #     - name: REDIS_ADDR
+      #       value: 'redis://localhost:6379'
