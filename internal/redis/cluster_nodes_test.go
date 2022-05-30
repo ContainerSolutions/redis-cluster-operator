@@ -471,9 +471,9 @@ c9d83f035342c51c8d23b32339f37656becd14c9 10.20.30.41:6379@16379 myself,master - 
 	}
 	removeAbleNode := &Node{
 		NodeAttributes: NodeAttributes{
-			ID:    "1a4c602fc868c69b74fc13f9b0410a20241c7197",
-			host:  "10.20.30.42",
-			port:  "6379",
+			ID:   "1a4c602fc868c69b74fc13f9b0410a20241c7197",
+			host: "10.20.30.42",
+			port: "6379",
 		},
 	}
 	err := clusterNodes.ForgetNode(context.TODO(), removeAbleNode)

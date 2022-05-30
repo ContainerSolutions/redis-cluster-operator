@@ -133,7 +133,7 @@ func TestMergeContainers(t *testing.T) {
 			},
 		},
 		{
-			Name: "prometheus-metrics",
+			Name:  "prometheus-metrics",
 			Image: "prometheus-redis:1.0.0",
 		},
 	}

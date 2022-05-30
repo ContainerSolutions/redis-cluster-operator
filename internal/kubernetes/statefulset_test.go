@@ -247,12 +247,12 @@ func TestCreateStatefulsetSpec_CanAddAdditionalContainers(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: cachev1alpha1.RedisClusterSpec{
-			Masters: 3,
+			Masters:           3,
 			ReplicasPerMaster: 1,
 			PodSpec: v13.PodSpec{
 				Containers: []v13.Container{
 					{
-						Name: "metric-container",
+						Name:  "metric-container",
 						Image: "prometheus:1.0.0",
 					},
 				},
@@ -283,16 +283,16 @@ func TestCreateStatefulsetSpec_CanOverrideRedisConfigurations(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: cachev1alpha1.RedisClusterSpec{
-			Masters: 3,
+			Masters:           3,
 			ReplicasPerMaster: 1,
 			PodSpec: v13.PodSpec{
 				Containers: []v13.Container{
 					{
-						Name: "redis",
+						Name:  "redis",
 						Image: "custom-redis-image:1.0.0",
 						Ports: []v13.ContainerPort{
 							{
-								Name: "custom-port",
+								Name:          "custom-port",
 								ContainerPort: 8080,
 							},
 						},
