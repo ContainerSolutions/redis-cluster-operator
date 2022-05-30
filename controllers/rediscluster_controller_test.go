@@ -138,6 +138,7 @@ func TestRedisClusterReconciler_Reconcile_DoesNotFailIfStatefulsetExists(t *test
 	s := scheme.Scheme
 	_ = cachev1alpha1.AddToScheme(s)
 
+	replicas := int32(6)
 	clientBuilder := fake.NewClientBuilder()
 	clientBuilder.WithObjects(&cachev1alpha1.RedisCluster{
 		ObjectMeta: metav1.ObjectMeta{
@@ -152,6 +153,9 @@ func TestRedisClusterReconciler_Reconcile_DoesNotFailIfStatefulsetExists(t *test
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "redis-cluster",
 			Namespace: "default",
+		},
+		Spec: v1.StatefulSetSpec{
+			Replicas: &replicas,
 		},
 	})
 	client := clientBuilder.Build()

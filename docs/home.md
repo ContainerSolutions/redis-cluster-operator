@@ -9,3 +9,5 @@ Here you can find documentation for the Redis Cluster Operator
 ## Running Redis Clusters
 
 * [Specifying Redis Cluster Configuration](./specifying-redis-configuration.md)
+* [Customising Pod Settings](./customising-pod-settings.md)
+* [Monitoring Clusters](./monitoring-redis.md)
