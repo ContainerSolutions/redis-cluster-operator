@@ -10,6 +10,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sort"
 	"testing"
 )
 
@@ -235,5 +236,83 @@ func TestCreateStatefulset_SetsLivenessAndReadinessProbes(t *testing.T) {
 
 	if statefulset.Spec.Template.Spec.Containers[0].ReadinessProbe == nil {
 		t.Fatalf("Liveness probe not set on the Redis statefulset")
+	}
+}
+
+func TestCreateStatefulsetSpec_CanAddAdditionalContainers(t *testing.T) {
+	// Register operator types with the runtime scheme.
+	cluster := &cachev1alpha1.RedisCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "redis-cluster",
+			Namespace: "default",
+		},
+		Spec: cachev1alpha1.RedisClusterSpec{
+			Masters: 3,
+			ReplicasPerMaster: 1,
+			PodSpec: v13.PodSpec{
+				Containers: []v13.Container{
+					{
+						Name: "metric-container",
+						Image: "prometheus:1.0.0",
+					},
+				},
+			},
+		},
+	}
+	statefulset := createStatefulsetSpec(cluster)
+
+	sort.SliceStable(statefulset.Spec.Template.Spec.Containers, func(i, j int) bool {
+		return statefulset.Spec.Template.Spec.Containers[i].Name > statefulset.Spec.Template.Spec.Containers[j].Name
+	})
+
+	// Assert and extra container has been added
+	if len(statefulset.Spec.Template.Spec.Containers) != 2 {
+		t.Fatalf("Additional container was not added")
+	}
+
+	if statefulset.Spec.Template.Spec.Containers[1].Name != "metric-container" || statefulset.Spec.Template.Spec.Containers[1].Image != "prometheus:1.0.0" {
+		t.Fatalf("Additional container was incorrectly added")
+	}
+}
+
+func TestCreateStatefulsetSpec_CanOverrideRedisConfigurations(t *testing.T) {
+	// Register operator types with the runtime scheme.
+	cluster := &cachev1alpha1.RedisCluster{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "redis-cluster",
+			Namespace: "default",
+		},
+		Spec: cachev1alpha1.RedisClusterSpec{
+			Masters: 3,
+			ReplicasPerMaster: 1,
+			PodSpec: v13.PodSpec{
+				Containers: []v13.Container{
+					{
+						Name: "redis",
+						Image: "custom-redis-image:1.0.0",
+						Ports: []v13.ContainerPort{
+							{
+								Name: "custom-port",
+								ContainerPort: 8080,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	statefulset := createStatefulsetSpec(cluster)
+
+	// Assert and extra container has been added
+	if len(statefulset.Spec.Template.Spec.Containers) != 1 {
+		t.Fatalf("Too many containers for simple override")
+	}
+
+	if statefulset.Spec.Template.Spec.Containers[0].Image != "custom-redis-image:1.0.0" {
+		t.Fatalf("Redis container image not correctly overridden")
+	}
+
+	if len(statefulset.Spec.Template.Spec.Containers[0].Ports) != 3 {
+		t.Fatalf("Additional port was not added")
 	}
 }
