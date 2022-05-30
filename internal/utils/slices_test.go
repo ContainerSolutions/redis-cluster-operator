@@ -3,6 +3,7 @@ package utils
 import (
 	v1 "k8s.io/api/core/v1"
 	"sort"
+	"strings"
 	"testing"
 )
 
@@ -56,18 +57,18 @@ func TestMergeContainerPorts(t *testing.T) {
 func TestMergeVolumeMounts(t *testing.T) {
 	originalVolumeMounts := []v1.VolumeMount{
 		{
-			Name:             "foobar",
-			MountPath:        "/etc/foo",
+			Name:      "foobar",
+			MountPath: "/etc/foo",
 		},
 	}
-	overrideVolumeMounts :=  []v1.VolumeMount{
+	overrideVolumeMounts := []v1.VolumeMount{
 		{
-			Name:             "foobar",
-			MountPath:        "/etc/foobar",
+			Name:      "foobar",
+			MountPath: "/etc/foobar",
 		},
 		{
-			Name:             "new-foo",
-			MountPath:        "/data",
+			Name:      "new-foo",
+			MountPath: "/data",
 		},
 	}
 	merged := MergeVolumeMounts(originalVolumeMounts, overrideVolumeMounts)
@@ -79,5 +80,99 @@ func TestMergeVolumeMounts(t *testing.T) {
 	}
 	if merged[1].MountPath != "/data" || merged[1].Name != "new-foo" {
 		t.Fatalf("New Volume Mount not added correctly")
+	}
+}
+
+func TestMergeContainers(t *testing.T) {
+	// We want to ensure we can add containers, as well as override containers
+	originalContainers := []v1.Container{
+		{
+			Name:  "redis",
+			Image: "redis:7",
+			Ports: []v1.ContainerPort{
+				{
+					Name:          "redis",
+					ContainerPort: 6379,
+				},
+			},
+			VolumeMounts: []v1.VolumeMount{
+				{
+					Name:      "redis-cluster-config",
+					MountPath: "/usr/local/etc/redis",
+				},
+			},
+		},
+	}
+	overrideContainers := []v1.Container{
+		{
+			Name:  "redis",
+			Image: "redis:5",
+			Ports: []v1.ContainerPort{
+				{
+					// override one port
+					Name:          "redis",
+					ContainerPort: 7001,
+				},
+				{
+					// add another port
+					Name:          "metrics",
+					ContainerPort: 8080,
+				},
+			},
+			VolumeMounts: []v1.VolumeMount{
+				{
+					// override volume mount
+					Name:      "redis-cluster-config",
+					MountPath: "/usr/local/etc/foobar",
+				},
+				{
+					// add volume mount
+					Name:      "redis-cluster-config-metrics",
+					MountPath: "/usr/local/etc/metrics",
+				},
+			},
+		},
+		{
+			Name: "prometheus-metrics",
+			Image: "prometheus-redis:1.0.0",
+		},
+	}
+
+	merged := MergeContainers(originalContainers, overrideContainers)
+	sort.Slice(merged, func(i, j int) bool {
+		return merged[i].Name < merged[j].Name
+	})
+
+	// Assert that the redis container pieces are overridden
+	redisContainer := merged[1]
+	if redisContainer.Image != "redis:5" {
+		t.Fatalf("Redis image not correctly overriden")
+	}
+
+	redisPorts := redisContainer.Ports
+	sort.SliceStable(redisPorts, func(i, j int) bool {
+		return strings.ToLower(merged[i].Name) > strings.ToLower(merged[j].Name)
+	})
+	if redisPorts[1].ContainerPort != 7001 {
+		t.Fatalf("Redis port not correctly overridden")
+	}
+	if redisPorts[0].ContainerPort != 8080 || redisPorts[0].Name != "metrics" {
+		t.Fatalf("Metrics port not correctly added")
+	}
+
+	redisVolumeMounts := redisContainer.VolumeMounts
+	sort.SliceStable(redisVolumeMounts, func(i, j int) bool {
+		return strings.ToLower(merged[i].Name) > strings.ToLower(merged[j].Name)
+	})
+	if redisVolumeMounts[0].Name != "redis-cluster-config-metrics" || redisVolumeMounts[0].MountPath != "/usr/local/etc/metrics" {
+		t.Fatalf("Metrics volume mount not correctly added")
+	}
+	if redisVolumeMounts[1].MountPath != "/usr/local/etc/foobar" {
+		t.Fatalf("Config volume mount not correctly overridden")
+	}
+
+	metricsContainer := merged[0]
+	if metricsContainer.Name != "prometheus-metrics" || metricsContainer.Image != "prometheus-redis:1.0.0" {
+		t.Fatalf("Metrics container not added correctly")
 	}
 }
