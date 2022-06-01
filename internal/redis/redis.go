@@ -72,6 +72,18 @@ func (n *NodeAttributes) HasFlag(flag string) bool {
 	return false
 }
 
+func (n *NodeAttributes) GetHost() string {
+	return n.host
+}
+
+func (n *NodeAttributes) GetPort() string {
+	return n.port
+}
+
+func (n *NodeAttributes) GetSlots() []int32 {
+	return n.slots
+}
+
 // Node represents a single Redis Node with a client, and a client builder.
 // The client builder is necessary in case we are getting nodes from this node, for example when we load friends.
 // We need a clientBuilder, so we can create the same base client for nodes fetched through this node,

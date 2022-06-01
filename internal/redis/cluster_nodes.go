@@ -208,3 +208,66 @@ func (c *ClusterNodes) EnsureClusterReplicationRatio(ctx context.Context, cluste
 
 	return nil
 }
+
+func (c * ClusterNodes) MoveSlot(ctx context.Context, source, destination *Node, slot int) error {
+	err := destination.Client.Do(ctx, "cluster", "setslot", slot, "importing", source.NodeAttributes.ID).Err()
+	if err != nil {
+		return err
+	}
+	err = source.Client.Do(ctx, "cluster", "setslot", slot, "migrating", destination.NodeAttributes.ID).Err()
+	if err != nil {
+		return err
+	}
+
+	for {
+		keys, err := source.ClusterGetKeysInSlot(ctx, slot, 50).Result()
+		if err != nil {
+			return err
+		}
+		if len(keys) == 0 {
+			break
+		}
+
+		// migrate 10.244.1.132 6379 "" 0 5000 KEYS A:163262 A:166510 A:172223 A:177551 A:18733 A:21915 A:247961 A:30954 A:383958 A:392919
+		migrateCmd := []interface{}{
+			"migrate",
+			destination.NodeAttributes.GetHost(),
+			destination.NodeAttributes.GetPort(),
+			"",
+			"0",
+			"5000",
+			"KEYS",
+		}
+		for _, key := range keys {
+			migrateCmd = append(migrateCmd, key)
+		}
+		err = source.Client.Do(
+			ctx,
+			migrateCmd...,
+		).Err()
+		if err != nil {
+			return err
+		}
+	}
+	err = destination.Client.Do(ctx, "cluster", "setslot", slot, "NODE", destination.NodeAttributes.ID).Err()
+	if err != nil {
+		return err
+	}
+	err = source.Client.Do(ctx, "cluster", "setslot", slot, "NODE", destination.NodeAttributes.ID).Err()
+	if err != nil {
+		return err
+	}
+	for _, node := range c.Nodes {
+		if node.NodeAttributes.ID == destination.NodeAttributes.ID {
+			continue
+		}
+		if node.NodeAttributes.ID == source.NodeAttributes.ID {
+			continue
+		}
+		err = source.Client.Do(ctx, "cluster", "setslot", slot, "NODE", destination.NodeAttributes.ID).Err()
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
