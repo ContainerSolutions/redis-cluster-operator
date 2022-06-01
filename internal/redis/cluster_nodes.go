@@ -209,7 +209,7 @@ func (c *ClusterNodes) EnsureClusterReplicationRatio(ctx context.Context, cluste
 	return nil
 }
 
-func (c * ClusterNodes) MoveSlot(ctx context.Context, source, destination *Node, slot int) error {
+func (c *ClusterNodes) MoveSlot(ctx context.Context, source, destination *Node, slot int) error {
 	err := destination.Client.Do(ctx, "cluster", "setslot", slot, "importing", source.NodeAttributes.ID).Err()
 	if err != nil {
 		return err
@@ -270,4 +270,76 @@ func (c * ClusterNodes) MoveSlot(ctx context.Context, source, destination *Node,
 		}
 	}
 	return nil
+}
+
+func (c *ClusterNodes) BalanceSlots(ctx context.Context, cluster *v1alpha1.RedisCluster) error {
+	slotMoves := c.CalculateRebalance(ctx, cluster)
+	for _, slotMove := range slotMoves {
+		for _, slot := range slotMove.Slots {
+			err := c.MoveSlot(ctx, slotMove.Source, slotMove.Destination, int(slot))
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+type slotMoveMap struct {
+	Source      *Node
+	Destination *Node
+	Slots       []int32
+}
+
+func (c *ClusterNodes) CalculateRebalance(ctx context.Context, cluster *v1alpha1.RedisCluster) []slotMoveMap {
+	// First we sort the nodes by slot count.
+	// This allows us to loop through and steal slots from nodes with too many slots,
+	// and then when we get to the ones with too few slots, we have a list of "stealable" slots to take from.
+	masters := c.Nodes
+	sort.Slice(masters, func(i, j int) bool {
+		return len(masters[i].NodeAttributes.GetSlots()) > len(masters[j].NodeAttributes.GetSlots())
+	})
+	var result []slotMoveMap
+	stealMap := map[*Node][]int32{}
+	for _, node := range c.GetMasters() {
+		slots := node.NodeAttributes.GetSlots()
+		sort.Slice(slots, func(i, j int) bool {
+			return slots[i] < slots[j]
+		})
+		if len(slots) > int(node.NeedsSlotCount(cluster)) {
+			// This node has too many slots
+			// We need to steal some slots from it
+			stealMap[node] = slots[:len(slots)-int(node.NeedsSlotCount(cluster))]
+		}
+		if len(slots) <= int(node.NeedsSlotCount(cluster)) {
+			// This node has too few slots
+			// We need to take slots from the stealable set
+			slotsNeeded := int(node.NeedsSlotCount(cluster))-len(slots)
+			for stealNode, stealSlots := range stealMap {
+				if slotsNeeded == 0 {
+					break
+				}
+				if len(stealSlots) > slotsNeeded {
+					slotsStolen := stealSlots[:slotsNeeded]
+					stealMap[stealNode] = stealSlots[slotsNeeded:]
+					result = append(result, slotMoveMap{
+						Source:      stealNode,
+						Destination: node,
+						Slots:       slotsStolen,
+					})
+					break
+				}
+				if len(stealSlots) <= slotsNeeded {
+					slotsNeeded -= len(stealSlots)
+					stealMap[stealNode] = []int32{}
+					result = append(result, slotMoveMap{
+						Source:      stealNode,
+						Destination: node,
+						Slots:       stealSlots,
+					})
+				}
+			}
+		}
+	}
+	return result
 }

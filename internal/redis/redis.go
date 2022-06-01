@@ -3,6 +3,7 @@ package redis
 import (
 	"context"
 	"errors"
+	"github.com/containersolutions/redis-cluster-operator/api/v1alpha1"
 	"github.com/go-redis/redis/v8"
 	v1 "k8s.io/api/core/v1"
 	"strconv"
@@ -183,4 +184,27 @@ func (n *Node) MeetNode(ctx context.Context, node *Node) error {
 	//port := parts[1]
 	err := n.ClusterMeet(ctx, node.NodeAttributes.host, node.NodeAttributes.port).Err()
 	return err
+}
+
+func (n *Node) GetOrdindal() int32 {
+	podParts := strings.Split(n.PodDetails.Name, "-")
+	ordinal, err := strconv.Atoi(podParts[len(podParts) - 1])
+	if err != nil {
+		panic(err)
+	}
+	return int32(ordinal)
+}
+
+func (n *Node) NeedsSlotCount(cluster *v1alpha1.RedisCluster) int32 {
+	masters := int(cluster.Spec.Masters)
+	remainder := TotalRedisSlots % masters
+
+	// baseSlotsForNode signifies the amount of slots evenly dividable for nodes
+	baseSlotsPerNode := TotalRedisSlots / masters
+
+	slotsForNode := baseSlotsPerNode
+	if int(n.GetOrdindal()) < remainder && remainder != 0 {
+		slotsForNode += 1
+	}
+	return int32(slotsForNode)
 }
