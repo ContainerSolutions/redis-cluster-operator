@@ -166,11 +166,11 @@ func (n *Node) GetFriends(ctx context.Context) ([]*Node, error) {
 			continue
 		}
 		result = append(result, &Node{
-			n.clientBuilder(&redis.Options{
+			Client: n.clientBuilder(&redis.Options{
 				Addr: nodeAttributes.host + ":" + nodeAttributes.port,
 			}),
-			nodeAttributes,
-			n.clientBuilder,
+			NodeAttributes: nodeAttributes,
+			clientBuilder: n.clientBuilder,
 		})
 	}
 	return result, err
