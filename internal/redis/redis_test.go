@@ -4,6 +4,8 @@ import (
 	"context"
 	"github.com/go-redis/redis/v8"
 	"github.com/go-redis/redismock/v8"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"reflect"
 	"testing"
 )
@@ -52,6 +54,11 @@ func TestProcessSlotString(t *testing.T) {
 func TestNewNodehasAttributesAttached(t *testing.T) {
 	node, err := NewNode(context.TODO(), &redis.Options{
 		Addr: "localhost:6379",
+	}, &v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "rediscluster",
+			Namespace: "default",
+		},
 	}, func(opt *redis.Options) *redis.Client {
 		db, mock := redismock.NewClientMock()
 		mock.ExpectClusterNodes().SetVal(`335e5ceff013eeebdbdb71bb65b4c1aeaf6a06f5 10.244.0.156:6379@16379 master - 0 1652373719041 2 connected
@@ -195,6 +202,11 @@ func TestNode_IsMasterReturnsTrueIfMaster(t *testing.T) {
 `)
 	node, err := NewNode(context.TODO(), &redis.Options{
 		Addr: "10.244.0.218:6379",
+	}, &v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "rediscluster",
+			Namespace: "default",
+		},
 	}, func(opt *redis.Options) *redis.Client {
 		return db
 	})
@@ -214,6 +226,11 @@ func TestNode_IsMasterReturnsFalseIfReplica(t *testing.T) {
 `)
 	node, err := NewNode(context.TODO(), &redis.Options{
 		Addr: "10.244.0.218:6379",
+	}, &v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "rediscluster",
+			Namespace: "default",
+		},
 	}, func(opt *redis.Options) *redis.Client {
 		return db
 	})

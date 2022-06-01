@@ -222,7 +222,7 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		if utils.IsPodReady(&pod) {
 			node, err := redis_internal.NewNode(ctx, &redis.Options{
 				Addr: pod.Status.PodIP + ":6379",
-			}, redis.NewClient)
+			}, &pod, redis.NewClient)
 			if err != nil {
 				return r.RequeueError(ctx, "Could not load Redis Client", err)
 			}

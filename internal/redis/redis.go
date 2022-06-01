@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"github.com/go-redis/redis/v8"
+	v1 "k8s.io/api/core/v1"
 	"strconv"
 	"strings"
 )
@@ -93,12 +94,14 @@ type Node struct {
 	*redis.Client
 	NodeAttributes NodeAttributes
 	clientBuilder  func(opt *redis.Options) *redis.Client
+	PodDetails     *v1.Pod
 }
 
-func NewNode(ctx context.Context, opt *redis.Options, clientBuilder func(opt *redis.Options) *redis.Client) (*Node, error) {
+func NewNode(ctx context.Context, opt *redis.Options, pod *v1.Pod, clientBuilder func(opt *redis.Options) *redis.Client) (*Node, error) {
 	redisClient := clientBuilder(opt)
 	node := &Node{
 		Client:         redisClient,
+		PodDetails:     pod,
 		NodeAttributes: NodeAttributes{},
 		clientBuilder:  clientBuilder,
 	}

@@ -5,6 +5,7 @@ import (
 	"github.com/containersolutions/redis-cluster-operator/api/v1alpha1"
 	"github.com/go-redis/redis/v8"
 	"github.com/go-redis/redismock/v8"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"reflect"
 	"testing"
@@ -21,6 +22,11 @@ func TestClusterMeetMeetsAllNodes(t *testing.T) {
 
 	node1, err := NewNode(context.TODO(), &redis.Options{
 		Addr: "10.20.30.40:6379",
+	}, &v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "rediscluster",
+			Namespace: "default",
+		},
 	}, func(opt *redis.Options) *redis.Client {
 		return node1Client
 	})
@@ -36,6 +42,11 @@ func TestClusterMeetMeetsAllNodes(t *testing.T) {
 	node2Mock.ExpectClusterMeet("10.20.30.41", "6379").SetVal("OK")
 	node2, err := NewNode(context.TODO(), &redis.Options{
 		Addr: "10.20.30.41:6379",
+	}, &v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "rediscluster",
+			Namespace: "default",
+		},
 	}, func(opt *redis.Options) *redis.Client {
 		return node2Client
 	})
@@ -70,6 +81,11 @@ func TestGetAssignedSlot(t *testing.T) {
 `)
 	node, err := NewNode(context.TODO(), &redis.Options{
 		Addr: "10.20.30.40:6379",
+	}, &v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "rediscluster",
+			Namespace: "default",
+		},
 	}, func(opt *redis.Options) *redis.Client {
 		return client
 	})
@@ -94,6 +110,11 @@ func TestGetMissingSlots(t *testing.T) {
 `)
 	node, err := NewNode(context.TODO(), &redis.Options{
 		Addr: "10.20.30.40:6379",
+	}, &v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "rediscluster",
+			Namespace: "default",
+		},
 	}, func(opt *redis.Options) *redis.Client {
 		return client
 	})
@@ -117,6 +138,11 @@ func TestCalculateSlotAssignmentWorksForMastersOnly(t *testing.T) {
 	for i := 0; i <= 3; i++ {
 		node, err := NewNode(context.TODO(), &redis.Options{
 			Addr: "10.20.30.40:6379",
+		}, &v1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "rediscluster",
+				Namespace: "default",
+			},
 		}, func(opt *redis.Options) *redis.Client {
 			client, mock := redismock.NewClientMock()
 			switch i {
@@ -186,6 +212,11 @@ func TestClusterNodes_GetMasters(t *testing.T) {
 	for i := 0; i <= 1; i++ {
 		node, err := NewNode(context.TODO(), &redis.Options{
 			Addr: "10.20.30.40:6379",
+		}, &v1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "rediscluster",
+				Namespace: "default",
+			},
 		}, func(opt *redis.Options) *redis.Client {
 			client, mock := redismock.NewClientMock()
 			if i == 0 {
@@ -222,6 +253,11 @@ func TestClusterNodes_GetReplicas(t *testing.T) {
 	for i := 0; i <= 1; i++ {
 		node, err := NewNode(context.TODO(), &redis.Options{
 			Addr: "10.20.30.40:6379",
+		}, &v1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "rediscluster",
+				Namespace: "default",
+			},
 		}, func(opt *redis.Options) *redis.Client {
 			client, mock := redismock.NewClientMock()
 			if i == 0 {
@@ -257,6 +293,11 @@ func TestClusterNodes_EnsureClusterReplicationRatioIfTooManyMasters(t *testing.T
 	// We are testing here that a cluster is replicated in the way we specified.
 	node1, err := NewNode(context.TODO(), &redis.Options{
 		Addr: "10.20.30.40:6379",
+	}, &v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "rediscluster",
+			Namespace: "default",
+		},
 	}, func(opt *redis.Options) *redis.Client {
 		client, mock := redismock.NewClientMock()
 		mock.ExpectClusterNodes().SetVal(`9fd8800b31d569538917c0aaeaa5588e2f9c6edf 10.20.30.40:6379@16379 myself,master - 0 1652373716000 0 connected
@@ -276,6 +317,11 @@ func TestClusterNodes_EnsureClusterReplicationRatioIfTooManyMasters(t *testing.T
 
 	node2, err := NewNode(context.TODO(), &redis.Options{
 		Addr: "10.20.30.41:6379",
+	}, &v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "rediscluster",
+			Namespace: "default",
+		},
 	}, func(opt *redis.Options) *redis.Client {
 		return replicaClient
 	})
@@ -315,6 +361,11 @@ func TestClusterNodes_EnsureClusterReplicationRatioIfTooFewMasters(t *testing.T)
 	for i := 0; i <= 3; i++ {
 		node, err := NewNode(context.TODO(), &redis.Options{
 			Addr: "10.20.30.40:6379",
+		}, &v1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "rediscluster",
+				Namespace: "default",
+			},
 		}, func(opt *redis.Options) *redis.Client {
 			client, mock := redismock.NewClientMock()
 			switch i {
@@ -389,6 +440,11 @@ func TestClusterNodes_GetFailingNodes(t *testing.T) {
 	for i := 0; i <= 0; i++ {
 		node, err := NewNode(context.TODO(), &redis.Options{
 			Addr: "10.20.30.40:6379",
+		}, &v1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "rediscluster",
+				Namespace: "default",
+			},
 		}, func(opt *redis.Options) *redis.Client {
 			client, mock := redismock.NewClientMock()
 			switch i {
@@ -437,6 +493,11 @@ func TestClusterNodes_ForgetNode(t *testing.T) {
 	for i := 0; i <= 1; i++ {
 		node, err := NewNode(context.TODO(), &redis.Options{
 			Addr: "10.20.30.40:6379",
+		}, &v1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "rediscluster",
+				Namespace: "default",
+			},
 		}, func(opt *redis.Options) *redis.Client {
 			client, mock := redismock.NewClientMock()
 			switch i {
