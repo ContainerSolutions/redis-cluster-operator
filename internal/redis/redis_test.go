@@ -2,8 +2,11 @@ package redis
 
 import (
 	"context"
+	"github.com/containersolutions/redis-cluster-operator/api/v1alpha1"
 	"github.com/go-redis/redis/v8"
 	"github.com/go-redis/redismock/v8"
+	v1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"reflect"
 	"testing"
 )
@@ -52,6 +55,11 @@ func TestProcessSlotString(t *testing.T) {
 func TestNewNodehasAttributesAttached(t *testing.T) {
 	node, err := NewNode(context.TODO(), &redis.Options{
 		Addr: "localhost:6379",
+	}, &v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rediscluster",
+			Namespace: "default",
+		},
 	}, func(opt *redis.Options) *redis.Client {
 		db, mock := redismock.NewClientMock()
 		mock.ExpectClusterNodes().SetVal(`335e5ceff013eeebdbdb71bb65b4c1aeaf6a06f5 10.244.0.156:6379@16379 master - 0 1652373719041 2 connected
@@ -195,6 +203,11 @@ func TestNode_IsMasterReturnsTrueIfMaster(t *testing.T) {
 `)
 	node, err := NewNode(context.TODO(), &redis.Options{
 		Addr: "10.244.0.218:6379",
+	}, &v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rediscluster",
+			Namespace: "default",
+		},
 	}, func(opt *redis.Options) *redis.Client {
 		return db
 	})
@@ -214,6 +227,11 @@ func TestNode_IsMasterReturnsFalseIfReplica(t *testing.T) {
 `)
 	node, err := NewNode(context.TODO(), &redis.Options{
 		Addr: "10.244.0.218:6379",
+	}, &v1.Pod{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "rediscluster",
+			Namespace: "default",
+		},
 	}, func(opt *redis.Options) *redis.Client {
 		return db
 	})
@@ -227,3 +245,62 @@ func TestNode_IsMasterReturnsFalseIfReplica(t *testing.T) {
 }
 
 // endregion
+
+func TestGetOrdindal(t *testing.T) {
+	node := Node{
+		PodDetails: &v1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "redis-cluster-11",
+			},
+		},
+	}
+	ordinal := node.GetOrdindal()
+	if ordinal != 11 {
+		t.Fatalf("Ordinal incorrectly calculated. Expected 11, Got: %d", ordinal)
+	}
+	node = Node{
+		PodDetails: &v1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "redis-cluster-8",
+			},
+		},
+	}
+	ordinal = node.GetOrdindal()
+	if ordinal != 8 {
+		t.Fatalf("Ordinal incorrectly calculated. Expected 8, Got: %d", ordinal)
+	}
+}
+
+func TestNeedsSlotCount(t *testing.T) {
+	// When we calculate slots counts per node, there are always remainders which we need to spread equally.
+	// NeedsSlots need to take this into account.
+	// All the first nodes need 1 extra node for every additional remainder.
+	//
+	// Example: When we have 3 masters, each node will get 5461 slots.
+	// That leaves 1 slot left which needs to be assigned to the earliest node
+	//
+	// Example: When we have 11 masters, each node will get 1489 slots.
+	// That leaves 15 slot left which needs to be assigned to the earliest nodes
+	cluster := &v1alpha1.RedisCluster{
+		Spec: v1alpha1.RedisClusterSpec{
+			Masters: 3,
+		},
+	}
+	node := Node{
+		PodDetails: &v1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "redis-cluster-0",
+			},
+		},
+	}
+	slotsNeeded := node.NeedsSlotCount(cluster)
+	if slotsNeeded != 5462 {
+		t.Fatalf("Incorrect amount of slots calculated for node %v. Expected 5462. Got %d", node.PodDetails.Name, slotsNeeded)
+	}
+
+	node.PodDetails.Name = "redis-cluster-1"
+	slotsNeeded = node.NeedsSlotCount(cluster)
+	if slotsNeeded != 5461 {
+		t.Fatalf("Incorrect amount of slots calculated for node %v. Expected 5461. Got %d", node.PodDetails.Name, slotsNeeded)
+	}
+}
