@@ -208,7 +208,7 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		// normal process for stabilising the Redis Cluster
 		logger.Info("Scaling up statefulset for Redis Cluster successful. Reconciling again in 5 seconds.")
 		return ctrl.Result{
-			RequeueAfter: 5,
+			RequeueAfter: 5 * time.Second,
 		}, nil
 	}
 
@@ -222,7 +222,7 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		if utils.IsPodReady(&pod) {
 			node, err := redis_internal.NewNode(ctx, &redis.Options{
 				Addr: pod.Status.PodIP + ":6379",
-			}, redis.NewClient)
+			}, &pod, redis.NewClient)
 			if err != nil {
 				return r.RequeueError(ctx, "Could not load Redis Client", err)
 			}
@@ -303,6 +303,13 @@ func (r *RedisClusterReconciler) Reconcile(ctx context.Context, req ctrl.Request
 				return r.RequeueError(ctx, fmt.Sprintf("could not forget node %s", node.NodeAttributes.ID), err)
 			}
 		}
+
+		logger.Info("Balancing Redis Cluster slots")
+		err = clusterNodes.BalanceSlots(ctx, redisCluster)
+		if err != nil {
+			return r.RequeueError(ctx, "could not balance slots across nodes", err)
+		}
+		logger.Info("Finished balancing Redis Cluster slots")
 	}
 
 	return ctrl.Result{

@@ -3,7 +3,9 @@ package redis
 import (
 	"context"
 	"errors"
+	"github.com/containersolutions/redis-cluster-operator/api/v1alpha1"
 	"github.com/go-redis/redis/v8"
+	v1 "k8s.io/api/core/v1"
 	"strconv"
 	"strings"
 )
@@ -72,6 +74,18 @@ func (n *NodeAttributes) HasFlag(flag string) bool {
 	return false
 }
 
+func (n *NodeAttributes) GetHost() string {
+	return n.host
+}
+
+func (n *NodeAttributes) GetPort() string {
+	return n.port
+}
+
+func (n *NodeAttributes) GetSlots() []int32 {
+	return n.slots
+}
+
 // Node represents a single Redis Node with a client, and a client builder.
 // The client builder is necessary in case we are getting nodes from this node, for example when we load friends.
 // We need a clientBuilder, so we can create the same base client for nodes fetched through this node,
@@ -81,12 +95,14 @@ type Node struct {
 	*redis.Client
 	NodeAttributes NodeAttributes
 	clientBuilder  func(opt *redis.Options) *redis.Client
+	PodDetails     *v1.Pod
 }
 
-func NewNode(ctx context.Context, opt *redis.Options, clientBuilder func(opt *redis.Options) *redis.Client) (*Node, error) {
+func NewNode(ctx context.Context, opt *redis.Options, pod *v1.Pod, clientBuilder func(opt *redis.Options) *redis.Client) (*Node, error) {
 	redisClient := clientBuilder(opt)
 	node := &Node{
 		Client:         redisClient,
+		PodDetails:     pod,
 		NodeAttributes: NodeAttributes{},
 		clientBuilder:  clientBuilder,
 	}
@@ -151,11 +167,11 @@ func (n *Node) GetFriends(ctx context.Context) ([]*Node, error) {
 			continue
 		}
 		result = append(result, &Node{
-			n.clientBuilder(&redis.Options{
+			Client: n.clientBuilder(&redis.Options{
 				Addr: nodeAttributes.host + ":" + nodeAttributes.port,
 			}),
-			nodeAttributes,
-			n.clientBuilder,
+			NodeAttributes: nodeAttributes,
+			clientBuilder:  n.clientBuilder,
 		})
 	}
 	return result, err
@@ -168,4 +184,27 @@ func (n *Node) MeetNode(ctx context.Context, node *Node) error {
 	//port := parts[1]
 	err := n.ClusterMeet(ctx, node.NodeAttributes.host, node.NodeAttributes.port).Err()
 	return err
+}
+
+func (n *Node) GetOrdindal() int32 {
+	podParts := strings.Split(n.PodDetails.Name, "-")
+	ordinal, err := strconv.Atoi(podParts[len(podParts)-1])
+	if err != nil {
+		panic(err)
+	}
+	return int32(ordinal)
+}
+
+func (n *Node) NeedsSlotCount(cluster *v1alpha1.RedisCluster) int32 {
+	masters := int(cluster.Spec.Masters)
+	remainder := TotalRedisSlots % masters
+
+	// baseSlotsForNode signifies the amount of slots evenly dividable for nodes
+	baseSlotsPerNode := TotalRedisSlots / masters
+
+	slotsForNode := baseSlotsPerNode
+	if int(n.GetOrdindal()) < remainder && remainder != 0 {
+		slotsForNode += 1
+	}
+	return int32(slotsForNode)
 }
