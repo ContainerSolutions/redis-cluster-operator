@@ -627,7 +627,7 @@ func TestClusterNodes_CalculateRebalanceWhenOneNodeNeedsToMoveSlots(t *testing.T
 			Namespace: "default",
 		},
 		Spec: v1alpha1.RedisClusterSpec{
-			Masters:           3,
+			Masters: 3,
 		},
 	})
 	for _, slotMoveMap := range slotMoves {
@@ -725,7 +725,7 @@ func TestClusterNodes_CalculateRebalanceWhenTwoNodesNeedToMoveSlots(t *testing.T
 			Namespace: "default",
 		},
 		Spec: v1alpha1.RedisClusterSpec{
-			Masters:           3,
+			Masters: 3,
 		},
 	})
 	for _, slotMoveMap := range slotMoves {

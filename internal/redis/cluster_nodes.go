@@ -314,7 +314,7 @@ func (c *ClusterNodes) CalculateRebalance(ctx context.Context, cluster *v1alpha1
 		if len(slots) <= int(node.NeedsSlotCount(cluster)) {
 			// This node has too few slots
 			// We need to take slots from the stealable set
-			slotsNeeded := int(node.NeedsSlotCount(cluster))-len(slots)
+			slotsNeeded := int(node.NeedsSlotCount(cluster)) - len(slots)
 			for stealNode, stealSlots := range stealMap {
 				if slotsNeeded == 0 {
 					break

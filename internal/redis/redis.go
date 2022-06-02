@@ -171,7 +171,7 @@ func (n *Node) GetFriends(ctx context.Context) ([]*Node, error) {
 				Addr: nodeAttributes.host + ":" + nodeAttributes.port,
 			}),
 			NodeAttributes: nodeAttributes,
-			clientBuilder: n.clientBuilder,
+			clientBuilder:  n.clientBuilder,
 		})
 	}
 	return result, err
@@ -188,7 +188,7 @@ func (n *Node) MeetNode(ctx context.Context, node *Node) error {
 
 func (n *Node) GetOrdindal() int32 {
 	podParts := strings.Split(n.PodDetails.Name, "-")
-	ordinal, err := strconv.Atoi(podParts[len(podParts) - 1])
+	ordinal, err := strconv.Atoi(podParts[len(podParts)-1])
 	if err != nil {
 		panic(err)
 	}

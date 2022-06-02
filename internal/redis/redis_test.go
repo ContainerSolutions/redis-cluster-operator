@@ -283,7 +283,7 @@ func TestNeedsSlotCount(t *testing.T) {
 	// That leaves 15 slot left which needs to be assigned to the earliest nodes
 	cluster := &v1alpha1.RedisCluster{
 		Spec: v1alpha1.RedisClusterSpec{
-			Masters:           3,
+			Masters: 3,
 		},
 	}
 	node := Node{
