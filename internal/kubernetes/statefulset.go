@@ -56,6 +56,9 @@ func createStatefulsetSpec(cluster *v1alpha1.RedisCluster) *v1.StatefulSet {
 			Template: v12.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
 					Labels: GetPodLabels(cluster),
+					Annotations: map[string]string{
+						"kubectl.kubernetes.io/default-container": "redis",
+					},
 				},
 				Spec: v12.PodSpec{
 					Volumes: utils.MergeVolumes(
