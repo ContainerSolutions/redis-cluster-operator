@@ -249,7 +249,7 @@ uninstall-dev: generate manifests ## Uninstall development components
 
 .PHONY: upload-dev
 upload-dev:  ## Upload application into development pod
-	./bin/krsync -av --exclude .idea --exclude .git --exclude bin --exclude config --progress --stats ./ $(DEV_POD):/workspace
+	./hack/krsync -av --exclude .idea --exclude .git --exclude bin --exclude config --progress --stats ./ $(DEV_POD):/workspace
 
 .PHONY: run-dev
 run-dev: upload-dev  ## Run application in development pod
