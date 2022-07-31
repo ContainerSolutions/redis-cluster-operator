@@ -186,7 +186,7 @@ func (n *Node) MeetNode(ctx context.Context, node *Node) error {
 	return err
 }
 
-func (n *Node) GetOrdindal() int32 {
+func (n *Node) GetOrdinal() int32 {
 	podParts := strings.Split(n.PodDetails.Name, "-")
 	ordinal, err := strconv.Atoi(podParts[len(podParts)-1])
 	if err != nil {
@@ -203,7 +203,7 @@ func (n *Node) NeedsSlotCount(cluster *v1alpha1.RedisCluster) int32 {
 	baseSlotsPerNode := TotalRedisSlots / masters
 
 	slotsForNode := baseSlotsPerNode
-	if int(n.GetOrdindal()) < remainder && remainder != 0 {
+	if int(n.GetOrdinal()) < remainder && remainder != 0 {
 		slotsForNode += 1
 	}
 	return int32(slotsForNode)
